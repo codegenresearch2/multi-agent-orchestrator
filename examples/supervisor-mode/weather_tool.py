@@ -1,8 +1,8 @@
 import requests
 from requests.exceptions import RequestException
-from typing import Any
+from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
-
+import json
 
 weather_tool_description = [{
     "toolSpec": {
@@ -38,14 +38,13 @@ To use the tool, you strictly apply the provided tool specification.
 - Repeat the tool use for subsequent requests if necessary.
 - If the tool errors, apologize, explain weather is unavailable, and suggest other options.
 - Report temperatures in °C (°F) and wind in km/h (mph). Keep weather reports concise. Sparingly use
-  emojis where appropriate.
+emojis where appropriate.
 - Only respond to weather queries. Remind off-topic users of your purpose.
 - Never claim to search online, access external data, or use tools besides Weather_Tool.
 - Complete the entire process until you have all required data before sending the complete response.
 """
 
-
-async def weather_tool_handler(response: ConversationMessage, conversation: list[dict[str, Any]]) -> ConversationMessage:
+async def weather_tool_handler(response: ConversationMessage, conversation: List[Dict[str, Any]]) -> ConversationMessage:
     response_content_blocks = response.content
 
     # Initialize an empty list of tool results
@@ -68,7 +67,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: list
                 tool_results.append({
                     "toolResult": {
                         "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": {"result": tool_response}}],
+                        "content": [tool_response],
                     }
                 })
 
@@ -88,7 +87,6 @@ async def fetch_weather_data(input_data):
     :param input_data: The input data containing the latitude and longitude.
     :return: The weather data or an error message.
     """
-
     endpoint = "https://api.open-meteo.com/v1/forecast"
     latitude = input_data.get("latitude")
     longitude = input_data.get("longitude", "")
@@ -96,7 +94,7 @@ async def fetch_weather_data(input_data):
 
     try:
         response = requests.get(endpoint, params=params)
-        weather_data = {"weather_data": response.json()}
+        weather_data = response.json()
         response.raise_for_status()
         return weather_data
     except RequestException as e:
