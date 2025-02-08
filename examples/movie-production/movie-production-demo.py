@@ -3,7 +3,7 @@ import os
 import uuid
 import asyncio
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
-from multi_agent_orchestrator.agents import (AnthropicAgent, AnthropicAgentOptions, AgentResponse)
+from multi_agent_orchestrator.agents import (BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse)
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from supervisor import SupervisorMode, SupervisorModeOptions
@@ -13,27 +13,26 @@ st.title("AI Movie Production Demo 🎬")
 st.caption("Bring your movie ideas to life with the teams of script writing and casting AI agents")
 
 # Get Anthropic API key from user
-anthropic_api_key = st.text_input("Enter Anthropic API Key to access Claude Sonnet 3.5", type="password", value=os.getenv('ANTHROPIC_API_KEY', None))
+antropic_api_key = st.text_input("Enter Anthropic API Key to access Claude Sonnet 3.5", type="password", value=os.getenv('ANTHROPIC_API_KEY', None))
 
-script_writer_agent = AnthropicAgent(AnthropicAgentOptions(
+script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="ScriptWriterAgent",
     description="""\nYou are an expert screenplay writer. Given a movie idea and genre,
 develop a compelling script outline with character descriptions and key plot points."""
 ))
 
-casting_director_agent = AnthropicAgent(AnthropicAgentOptions(
+casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="CastingDirectorAgent",
-    description="""\nYou are a talented casting director. Given a script outline and character descriptions,\
+    description="""\nYou are a talented casting director. Given a script outline and character descriptions,
 suggest suitable actors for the main roles, considering their past performances and current availability."""
 ))
 
-movie_producer_supervisor = AnthropicAgent(AnthropicAgentOptions(
+movie_producer_supervisor = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
-    description="""
-Experienced movie producer overseeing script and casting."""
+    description="""\nExperienced movie producer overseeing script and casting."""
 ))
 
 supervisor = SupervisorMode(SupervisorModeOptions(
