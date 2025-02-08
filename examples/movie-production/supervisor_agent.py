@@ -9,21 +9,19 @@ class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
-
 @dataclass
-class SupervisorAgentOptions:
-    supervisor: Any = None
-    team: list = field(default_factory=list)
-    storage: Optional[Any] = None
+class SupervisorAgentOptions(AgentOptions):
+    supervisor: Agent = None
+    team: list[Agent] = field(default_factory=list)
+    storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
 
     # Hide inherited fields
     name: str = field(init=False)
     description: str = field(init=False)
 
-
-class SupervisorAgent:
-    supervisor_tools: list = [
+class SupervisorAgent(Agent):
+    supervisor_tools: list[Tool] = [
         Tool(name='send_messages', description='Send a message to a one or multiple agents in parallel.', properties={
             "messages": {
                 "type": "array",
@@ -45,23 +43,13 @@ class SupervisorAgent:
                 "minItems": 1
             }
         }, required=["messages"]),
-        Tool(name="get_current_date", description="Get the date of today in US format.", properties={}, required=[])
+        Tool(name="get_current_date", description="Get the date of today in US format.", properties={},
+             required=[])
     ]
 
     def __init__(self, options: SupervisorAgentOptions):
-        try:
-            from multi_agent_orchestrator.agents import Agent, BedrockLLMAgent, AnthropicAgent
-        except ImportError:
-            raise ImportError("Required modules are not available.")
-
-        options.name = options.supervisor.name
-        options.description = options.supervisor.description
         super().__init__(options)
-        self.supervisor = options.supervisor if isinstance(options.supervisor, (BedrockLLMAgent, AnthropicAgent)) else None
-
-        if not self.supervisor:
-            raise ValueError("Supervisor must be a BedrockLLMAgent or AnthropicAgent.")
-
+        self.supervisor = options.supervisor
         self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
@@ -73,8 +61,8 @@ class SupervisorAgent:
         else:
             raise RuntimeError('Supervisor tool config already set. Please do not set it manually.')
 
-        self.user_id = ''
-        self.session_id = ''
+        self.user_id = ""
+        self.session_id = ""
         self.storage = options.storage or InMemoryChatStorage()
         self.trace = options.trace
 
@@ -97,15 +85,16 @@ class SupervisorAgent:
             Logger.debug(f"Supervisor {self.supervisor.__class__} is not supported")
             raise RuntimeError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
 
-    def send_message(self, agent: Any, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str:
+    async def send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str:
         Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}")
         if self.trace:
             pass
-        agent_chat_history = asyncio.run(self.storage.fetch_chat(user_id, session_id, agent.id)) if agent.save_chat else []
-        response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters))
-        asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}])))
-        asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')}"}])))
-        Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...")
+        agent_chat_history = await self.storage.fetch_chat(user_id, session_id, agent.id) if agent.save_chat else []
+        response = await agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters)
+        await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}]))
+        await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')"}])))
+        Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:
+{response.content[0].get('text', '')[:500]}...")
         if self.trace:
             pass
         return f"{agent.name}: {response.content[0].get('text')}"
@@ -132,59 +121,3 @@ class SupervisorAgent:
             responses = await asyncio.gather(*tasks)
             return ''.join(responses)
         return ''
-
-    async def get_current_date(self) -> str:
-        return datetime.now(timezone.utc).strftime('%m/%d/%Y')
-
-    async def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]],) -> Any:
-        if not response.content:
-            raise ValueError("No content blocks in response")
-
-        tool_results = []
-        content_blocks = response.content
-
-        for block in content_blocks:
-            tool_use_block = self._get_tool_use_block(block)
-            if not tool_use_block:
-                continue
-
-            tool_name = tool_use_block.get("name")
-            input_data = tool_use_block.get("input", {})
-
-            result = await self._process_tool(tool_name, input_data)
-            tool_result = ToolResult(tool_id=None, result=result)
-            formatted_result = tool_result.to_bedrock_format()
-            tool_results.append(formatted_result)
-
-            return ConversationMessage(role=ParticipantRole.USER.value, content=tool_results)
-
-    async def _process_tool(self, tool_name: str, input_data: dict) -> Any:
-        if tool_name == "send_messages":
-            return await self.send_messages(input_data.get('messages'))
-        elif tool_name == "get_current_date":
-            return await self.get_current_date()
-        else:
-            error_msg = f"Unknown tool use name: {tool_name}"
-            Logger.error(error_msg)
-            return error_msg
-
-    async def process_request(self, input_text: str, user_id: str, session_id: str, chat_history: list[ConversationMessage], additional_params: Optional[dict[str, str]] = None) -> Union[ConversationMessage, AsyncIterable[Any]]:
-        self.user_id = user_id
-        self.session_id = session_id
-
-        agents_history = await self.storage.fetch_all_chats(user_id, session_id)
-        agents_memory = ''.join(
-            f"{user_msg.role}:{user_msg.content[0].get('text', '')}\n"
-            f"{asst_msg.role}:{asst_msg.content[0].get('text', '')}\n"
-            for user_msg, asst_msg in zip(agents_history[::2], agents_history[1::2])
-            if self.id not in asst_msg.content[0].get('text', '')
-        )
-
-        self.supervisor.set_system_prompt(self.prompt_template.replace('{AGENTS_MEMORY}', agents_memory))
-        response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
-        return response
-
-    def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
-        if "toolUse" in block:
-            return block["toolUse"]
-        return None
