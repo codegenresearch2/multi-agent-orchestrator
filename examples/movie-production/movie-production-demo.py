@@ -3,10 +3,10 @@ import os
 import uuid
 import asyncio
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
-from multi_agent_orchestrator.agents import (BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse)
+from multi_agent_orchestrator.agents import BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
-from supervisor import SupervisorMode, SupervisorModeOptions
+from supervisor import SupervisorAgent, SupervisorAgentOptions
 
 # Set up the Streamlit app
 st.title("AI Movie Production Demo 🎬")
@@ -18,24 +18,24 @@ antropic_api_key = st.text_input("Enter Anthropic API Key to access Claude Sonne
 script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="ScriptWriterAgent",
-    description="""\nYou are an expert screenplay writer. Given a movie idea and genre,
-develop a compelling script outline with character descriptions and key plot points."""
+    description="\nYou are an expert screenplay writer. Given a movie idea and genre,
+develop a compelling script outline with character descriptions and key plot points."
 ))
 
 casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="CastingDirectorAgent",
-    description="""\nYou are a talented casting director. Given a script outline and character descriptions,
-suggest suitable actors for the main roles, considering their past performances and current availability."""
+    description="\nYou are a talented casting director. Given a script outline and character descriptions,
+suggest suitable actors for the main roles, considering their past performances and current availability."
 ))
 
 movie_producer_supervisor = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
-    description="""\nExperienced movie producer overseeing script and casting."""
+    description="\nExperienced movie producer overseeing script and casting."
 ))
 
-supervisor = SupervisorMode(SupervisorModeOptions(
+supervisor = SupervisorAgent(SupervisorAgentOptions(
     supervisor=movie_producer_supervisor,
     team=[script_writer_agent, casting_director_agent],
     trace=True
