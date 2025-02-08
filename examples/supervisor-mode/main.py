@@ -3,7 +3,6 @@ import asyncio
 import os
 import sys
 from dotenv import load_dotenv
-from logging import Logger
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse, AgentCallbacks)
 from multi_agent_orchestrator.classifiers import ClassifierResult
@@ -30,10 +29,15 @@ sales_agent = BedrockLLMAgent(
     )
 )
 
-claim_agent = AmazonBedrockAgent(AmazonBedrockAgentOptions(
-    name='ClaimAgent',
-    description='Specializes in handling claims and disputes.'
-))
+claim_agent = BedrockLLMAgent(
+    options=BedrockLLMAgentOptions(
+        name='ClaimAgent',
+        description='Specializes in handling claims and disputes.',
+        model_id='anthropic.claude-3-haiku-20240307-v1:0',
+        agent_id=os.getenv('CLAIM_AGENT_ID', None),
+        agent_alias_id=os.getenv('CLAIM_AGENT_ALIAS_ID', None)
+    )
+)
 
 weather_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
@@ -63,16 +67,12 @@ travel_agent = BedrockLLMAgent(
     )
 )
 
-airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
-                                              description='Helps users book their flight. This bot works with US metric time and date.',
-                                              locale_id='en_US',
-                                              bot_id=os.getenv('AIRLINES_BOT_ID', None),
-                                              bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
-
-supervisor_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    name='SupervisorAgent',
-    description='You are a supervisor agent. You are responsible for managing the flow of the conversation. You are only allowed to manage the flow of the conversation. You are not allowed to answer questions about anything else.'
-))
+supervisor_agent = BedrockLLMAgent(
+    options=BedrockLLMAgentOptions(
+        name='SupervisorAgent',
+        description='You are a supervisor agent. You are responsible for managing the flow of the conversation. You are only allowed to manage the flow of the conversation. You are not allowed to answer questions about anything else.'
+    )
+)
 
 supervisor = SupervisorAgent(
     SupervisorAgentOptions(
@@ -83,7 +83,8 @@ supervisor = SupervisorAgent(
             region='us-east-1'
         ),
         trace=True
-    ))
+    )
+)
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
     classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
@@ -116,7 +117,8 @@ if __name__ == '__main__':
     storage=DynamoDbChatStorage(
         table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
         region='us-east-1'
-    ))
+    )
+    )
 
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
@@ -128,7 +130,7 @@ if __name__ == '__main__':
         user_input = input('\nYou: ').strip()
 
         if user_input.lower() == 'quit':
-            print('Exiting the program. Goodbye!')
+            print('Exiting the program. Goodbye!')  
             sys.exit()
 
         # Run the async function
