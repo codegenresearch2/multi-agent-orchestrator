@@ -18,14 +18,17 @@ class ComprehendFilterAgentOptions(AgentOptions):
                  allow_pii: bool = False,
                  language_code: str = 'en',
                  **kwargs):
-    super().__init__(**kwargs)
-    self.enable_sentiment_check = enable_sentiment_check
-    self.enable_pii_check = enable_pii_check
-    self.enable_toxicity_check = enable_toxicity_check
-    self.sentiment_threshold = sentiment_threshold
-    self.toxicity_threshold = toxicity_threshold
-    self.allow_pii = allow_pii
-    self.language_code = language_code
+        super().__init__(**kwargs)
+        self.enable_sentiment_check = enable_sentiment_check
+        self.enable_pii_check = enable_pii_check
+        self.enable_toxicity_check = enable_toxicity_check
+        self.sentiment_threshold = sentiment_threshold
+        self.toxicity_threshold = toxicity_threshold
+        self.allow_pii = allow_pii
+        self.language_code = self.validate_language_code(language_code) or 'en'
+        # Ensure at least one check is enabled
+        if not any([self.enable_sentiment_check, self.enable_pii_check, self.enable_toxicity_check]):
+            self.enable_toxicity_check = True
 
 class ComprehendFilterAgent(Agent):
     def __init__(self, options: ComprehendFilterAgentOptions):
@@ -40,8 +43,6 @@ class ComprehendFilterAgent(Agent):
         self.toxicity_threshold = options.toxicity_threshold
         self.allow_pii = options.allow_pii
         self.language_code = self.validate_language_code(options.language_code) or 'en'
-        if not any([self.enable_sentiment_check, self.enable_pii_check, self.enable_toxicity_check]):
-            self.enable_toxicity_check = True
 
     async def process_request(self,
                               input_text: str,
@@ -50,7 +51,7 @@ class ComprehendFilterAgent(Agent):
                               chat_history: List[ConversationMessage],
                               additional_params: Optional[Dict[str, str]] = None) -> Optional[ConversationMessage]:
         try:
-            issues = []
+            issues: List[str] = []
             sentiment_result = self.detect_sentiment(input_text) if self.enable_sentiment_check else None
             pii_result = self.detect_pii_entities(input_text) if self.enable_pii_check else None
             toxicity_result = self.detect_toxic_content(input_text) if self.enable_toxicity_check else None
@@ -75,8 +76,7 @@ class ComprehendFilterAgent(Agent):
                 return None
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
-                content=[{'text': input_text}]
-            )
+                content=[{'text': input_text}])
         except Exception as error:
             Logger.logger.error('Error in ComprehendContentFilterAgent:', error)
             raise
@@ -103,20 +103,17 @@ class ComprehendFilterAgent(Agent):
     def detect_sentiment(self, text: str) -> Dict[str, Any]:
         return self.comprehend_client.detect_sentiment(
             Text=text,
-            LanguageCode=self.language_code
-        )
+            LanguageCode=self.language_code)
 
     def detect_pii_entities(self, text: str) -> Dict[str, Any]:
         return self.comprehend_client.detect_pii_entities(
             Text=text,
-            LanguageCode=self.language_code
-        )
+            LanguageCode=self.language_code)
 
     def detect_toxic_content(self, text: str) -> Dict[str, Any]:
         return self.comprehend_client.detect_toxic_content(
             TextSegments=[{'Text': text}],
-            LanguageCode=self.language_code
-        )
+            LanguageCode=self.language_code)
 
     def get_toxic_labels(self, toxicity_result: Dict[str, Any]) -> List[str]:
         toxic_labels = []
