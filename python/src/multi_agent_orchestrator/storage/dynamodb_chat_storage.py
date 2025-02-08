@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import time
 import boto3
 from multi_agent_orchestrator.storage import ChatStorage
@@ -36,14 +36,14 @@ class DynamoDbChatStorage(ChatStorage):
             max_history_size
         )
 
-        item: Dict[str, str] = {
+        item: Dict[str, Union[str, List[TimestampedMessage], int]] = {
             'PK': user_id,
             'SK': key,
             'conversation': conversation_to_dict(trimmed_conversation),
         }
 
         if self.ttl_key:
-            item[self.ttl_key] = str(int(time.time()) + self.ttl_duration)
+            item[self.ttl_key] = int(time.time()) + self.ttl_duration
 
         try:
             self.table.put_item(Item=item)
