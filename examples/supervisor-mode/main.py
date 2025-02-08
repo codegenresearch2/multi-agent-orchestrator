@@ -3,6 +3,7 @@ import asyncio
 import os
 import sys
 from dotenv import load_dotenv
+from logging import Logger
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse, AgentCallbacks)
 from multi_agent_orchestrator.classifiers import ClassifierResult
@@ -26,7 +27,7 @@ sales_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     model_id='anthropic.claude-3-haiku-20240307-v1:0',
 ))
 
-claim_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
+claim_agent = AmazonBedrockAgent(AmazonBedrockAgentOptions(
     name='ClaimAgent',
     description='Specializes in handling claims and disputes.'
 ))
@@ -104,8 +105,8 @@ if __name__ == '__main__':
     ),
     storage=DynamoDbChatStorage(
         table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
-        region='us-east-1')
-    )
+        region='us-east-1'
+    ))
 
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
