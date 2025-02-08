@@ -18,9 +18,19 @@ class AgentConfiguration:
         if self.param2 <= 0:
             raise ValueError('param2 must be a positive integer')
 
-class AgentProcessor:
-    def __init__(self, config: AgentConfiguration):
-        self.config = config.validate() if config else AgentConfiguration(param1='default', param2=1)
+@dataclass
+class MultiAgentOrchestrator:
+    config: AgentConfiguration
+
+    def __post_init__(self):
+        self.config = self.validate_config(self.config)
+
+    def validate_config(self, config: AgentConfiguration) -> AgentConfiguration:
+        if not config.param1:
+            raise ValueError('param1 must be provided in config')
+        if config.param2 <= 0:
+            raise ValueError('param2 must be a positive integer in config')
+        return config
 
     async def process_data_async(self, data: List[int]) -> List[int]:
         '''Asynchronously processes the input data and returns the processed data.'''        
@@ -44,7 +54,7 @@ class AgentProcessor:
 # Example usage
 if __name__ == '__main__':
     config = AgentConfiguration(param1='example', param2=123)
-    instance = AgentProcessor(config)
+    instance = MultiAgentOrchestrator(config)
     data = [1, 2, 3, 4]
     try:
         result = instance.process_data(data)  # Using synchronous method for demonstration
