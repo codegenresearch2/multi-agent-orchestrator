@@ -1,1 +1,1 @@
-This module implements an Amazon Bedrock agent that interacts with a runtime client."","from typing import Dict, List, Optional","."""This module implements an Amazon Bedrock agent that interacts with a runtime client."""",
+This module implements an Amazon Bedrock agent that interacts with a runtime client.
