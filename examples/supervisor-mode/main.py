@@ -17,21 +17,24 @@ load_dotenv()
 tech_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='TechAgent',
-        description='You are a tech agent. You are responsible for answering questions about tech. You are only allowed to answer questions about tech. You are not allowed to answer questions about anything else.')),
+        description='You are a tech agent. You are responsible for answering questions about tech. You are only allowed to answer questions about tech. You are not allowed to answer questions about anything else.'
+    ),
     model_id='anthropic.claude-3-haiku-20240307-v1:0',
 )
 
 sales_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='SalesAgent',
-        description='You are a sales agent. You are responsible for answering questions about sales. You are only allowed to answer questions about sales. You are not allowed to answer questions about anything else.')),
+        description='You are a sales agent. You are responsible for answering questions about sales. You are only allowed to answer questions about sales. You are not allowed to answer questions about anything else.'
+    ),
     model_id='anthropic.claude-3-haiku-20240307-v1:0',
 )
 
 claim_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='ClaimAgent',
-        description='Specializes in handling claims and disputes.')),
+        description='Specializes in handling claims and disputes.'
+    ),
     model_id='anthropic.claude-3-haiku-20240307-v1:0',
     agent_id=os.getenv('CLAIM_AGENT_ID', None),
     agent_alias_id=os.getenv('CLAIM_AGENT_ALIAS_ID', None)
@@ -41,7 +44,8 @@ weather_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='WeatherAgent',
         streaming=False,
-        description='Specialized agent for giving weather forecast condition from a city.')),
+        description='Specialized agent for giving weather forecast condition from a city.'
+    ),
     tool_config={
         'tool': weather_tool_description,
         'toolMaxRecursions': 5,
@@ -53,19 +57,22 @@ weather_agent.set_system_prompt(weather_tool_prompt)
 health_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='HealthAgent',
-        description='You are a health agent. You are responsible for answering questions about health. You are only allowed to answer questions about health. You are not allowed to answer questions about anything else.')
+        description='You are a health agent. You are responsible for answering questions about health. You are only allowed to answer questions about health. You are not allowed to answer questions about anything else.'
+    )
 )
 
 travel_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='TravelAgent',
-        description='You are a travel assistant agent. You are responsible for answering questions about travel, activities, sight seesing about a city and surrounding')
+        description='You are a travel assistant agent. You are responsible for answering questions about travel, activities, sight seeing about a city and surrounding'
+    )
 )
 
 supervisor_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='SupervisorAgent',
-        description='You are a supervisor agent. You are responsible for managing the flow of the conversation. You are only allowed to manage the flow of the conversation. You are not allowed to answer questions about anything else.')
+        description='You are a supervisor agent. You are responsible for managing the flow of the conversation. You are only allowed to manage the flow of the conversation. You are not allowed to answer questions about anything else.'
+    )
 )
 
 supervisor = SupervisorAgent(
@@ -124,7 +131,7 @@ if __name__ == '__main__':
         user_input = input('\nYou: ').strip()
 
         if user_input.lower() == 'quit':
-            print('Exiting the program. Goodbye!')  
+            print('Exiting the program. Goodbye!')
             sys.exit()
 
         # Run the async function
