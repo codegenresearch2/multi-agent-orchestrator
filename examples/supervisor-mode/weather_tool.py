@@ -74,8 +74,8 @@ async def fetch_weather_data(input_data):
         response = requests.get(endpoint, params=params)
         weather_data = response.json()
         response.raise_for_status()
-        return {"json": {"result": weather_data}}
+        return weather_data
     except RequestException as e:
-        return {"json": {"error": str(e)}}
+        return str(e.response)
     except Exception as e:
-        return {"json": {"error": {"type": type(e), "message": str(e)}}}
+        return {"error": str(e)}
