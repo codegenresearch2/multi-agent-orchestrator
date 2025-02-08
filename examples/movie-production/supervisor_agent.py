@@ -10,19 +10,21 @@ class SupervisorType(Enum):
     ANTHROPIC = "ANTHROPIC"
 
 @dataclass
-class SupervisorAgentOptions:
-    supervisor: Any = None
-    team: list = field(default_factory=list)
-    storage: Optional[Any] = None
+class SupervisorAgentOptions(AgentOptions):
+    supervisor: Agent = None
+    team: list[Agent] = field(default_factory=list)
+    storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
 
     # Hide inherited fields
     name: str = field(init=False)
     description: str = field(init=False)
 
-class SupervisorAgent:
-    supervisor_tools: list = [
-        Tool(name='send_messages', description='Send a message to a one or multiple agents in parallel.', properties={
+class SupervisorAgent(Agent):
+    supervisor_tools: list[Tool] = [Tool(
+        name='send_messages',
+        description='Send a message to a one or multiple agents in parallel.',
+        properties={
             "messages": {
                 "type": "array",
                 "items": {
@@ -42,16 +44,19 @@ class SupervisorAgent:
                 "description": "Array of messages to send to different agents.",
                 "minItems": 1
             }
-        }, required=["messages"]),
-        Tool(name="get_current_date", description="Get the date of today in US format.", properties={}, required=[])
-    ]
+        },
+        required=["messages"]
+    ),
+    Tool(
+        name="get_current_date",
+        description="Get the date of today in US format.",
+        properties={},
+        required=[]
+    )]
 
     def __init__(self, options: SupervisorAgentOptions):
-        options.name = options.supervisor.name
-        options.description = options.supervisor.description
         super().__init__(options)
         self.supervisor = options.supervisor
-
         self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
@@ -61,7 +66,7 @@ class SupervisorAgent:
                 'useToolHandler': self.supervisor_tool_handler
             }
         else:
-            raise RuntimeError('Supervisor tool config already set. Please do not set it manually.')        
+            raise RuntimeError('Supervisor tool config already set. Please do not set it manually.')
 
         self.user_id = ""
         self.session_id = ""
