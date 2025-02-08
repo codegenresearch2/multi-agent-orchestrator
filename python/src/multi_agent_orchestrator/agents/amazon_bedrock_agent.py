@@ -1,5 +1,5 @@
-"""This module implements an Amazon Bedrock agent that interacts with a runtime client.
-"""
+This module implements an Amazon Bedrock agent that interacts with a runtime client.
+"""This module implements an Amazon Bedrock agent that interacts with a runtime client."""
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 import os
@@ -33,8 +33,7 @@ class AmazonBedrockAgent(Agent):
         super().__init__(options)
         self.agent_id = options.agent_id
         self.agent_alias_id = options.agent_alias_id
-        self.client = boto3.client('bedrock-agent-runtime',
-                                   region_name=options.region or os.environ.get('AWS_REGION'))
+        self.client = boto3.client('bedrock-agent-runtime', region_name=options.region or os.environ.get('AWS_REGION'))
 
     async def process_request(
         self,
@@ -74,12 +73,12 @@ class AmazonBedrockAgent(Agent):
 
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
-                content=[{"text": completion}]
+                content=[{"text": completion}],
             )
 
         except (BotoCoreError, ClientError) as error:
-            Logger.error(f"Error processing request: {str(error)}")
+            Logger.error(f"Error processing request: {error}")
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
-                content=[{"text": "Sorry, I encountered an error while processing your request."}]
+                content=[{"text": "Sorry, I encountered an error while processing your request."}],
             )
