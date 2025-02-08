@@ -2,7 +2,7 @@ import requests
 from requests.exceptions import RequestException
 from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
-import json
+
 
 weather_tool_description = [{
     "toolSpec": {
@@ -19,11 +19,11 @@ weather_tool_description = [{
                     "longitude": {
                         "type": "string",
                         "description": "Geographical WGS84 longitude of the location.",
-                    },
+                    }
                 },
-                "required": ["latitude", "longitude"],
+                "required": ["latitude", "longitude"]
             }
-        },
+        }
     }
 }]
 
@@ -64,7 +64,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
     return message
 
 async def fetch_weather_data(input_data):
-    """\n    Fetches weather data for the given latitude and longitude using the Open-Meteo API.\n    Returns the weather data or an error message if the request fails.\n\n    :param input_data: The input data containing the latitude and longitude.\n    :return: The weather data or an error message.\n    """
+    """\nFetches weather data for the given latitude and longitude using the Open-Meteo API.\nReturns the weather data or an error message if the request fails.\n\n:param input_data: The input data containing the latitude and longitude.\n:return: The weather data or an error message.\n"""
     endpoint = "https://api.open-meteo.com/v1/forecast"
     latitude = input_data.get("latitude")
     longitude = input_data.get("longitude", "")
@@ -74,8 +74,8 @@ async def fetch_weather_data(input_data):
         response = requests.get(endpoint, params=params)
         weather_data = response.json()
         response.raise_for_status()
-        return {"json": {"result": weather_data}}
+        return weather_data
     except RequestException as e:
-        return {"json": {"error": e.response.json()}}
+        return e.response.json()
     except Exception as e:
-        return {"json": {"error": {"type": type(e), "message": str(e)}}}
+        return {"error": str(e)}
