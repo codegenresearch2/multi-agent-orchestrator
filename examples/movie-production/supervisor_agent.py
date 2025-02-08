@@ -10,18 +10,18 @@ class SupervisorType(Enum):
     ANTHROPIC = "ANTHROPIC"
 
 @dataclass
-class SupervisorAgentOptions(AgentOptions):
-    supervisor: Agent = None
-    team: list[Agent] = field(default_factory=list)
-    storage: Optional[ChatStorage] = None
+class SupervisorAgentOptions:
+    supervisor: Any = None
+    team: list = field(default_factory=list)
+    storage: Optional[Any] = None
     trace: Optional[bool] = None
 
     # Hide inherited fields
     name: str = field(init=False)
     description: str = field(init=False)
 
-class SupervisorAgent(Agent):
-    supervisor_tools: list[Tool] = [
+class SupervisorAgent:
+    supervisor_tools: list = [
         Tool(name='send_messages', description='Send a message to a one or multiple agents in parallel.', properties={
             "messages": {
                 "type": "array",
@@ -43,13 +43,15 @@ class SupervisorAgent(Agent):
                 "minItems": 1
             }
         }, required=["messages"]),
-        Tool(name="get_current_date", description="Get the date of today in US format.", properties={},
-             required=[])
+        Tool(name="get_current_date", description="Get the date of today in US format.", properties={}, required=[])
     ]
 
     def __init__(self, options: SupervisorAgentOptions):
+        options.name = options.supervisor.name
+        options.description = options.supervisor.description
         super().__init__(options)
         self.supervisor = options.supervisor
+
         self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
@@ -59,7 +61,7 @@ class SupervisorAgent(Agent):
                 'useToolHandler': self.supervisor_tool_handler
             }
         else:
-            raise RuntimeError('Supervisor tool config already set. Please do not set it manually.')
+            raise RuntimeError('Supervisor tool config already set. Please do not set it manually.')        
 
         self.user_id = ""
         self.session_id = ""
@@ -92,9 +94,8 @@ class SupervisorAgent(Agent):
         agent_chat_history = await self.storage.fetch_chat(user_id, session_id, agent.id) if agent.save_chat else []
         response = await agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters)
         await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}]))
-        await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')"}])))
-        Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:
-{response.content[0].get('text', '')[:500]}...")
+        await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')"}}]))
+        Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...")
         if self.trace:
             pass
         return f"{agent.name}: {response.content[0].get('text')}"
