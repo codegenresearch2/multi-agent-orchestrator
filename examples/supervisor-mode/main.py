@@ -4,6 +4,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from logging import Logger
+
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse, AgentCallbacks)
 from multi_agent_orchestrator.classifiers import ClassifierResult
@@ -30,7 +31,7 @@ sales_agent = BedrockLLMAgent(
     model_id='anthropic.claude-3-haiku-20240307-v1:0',
 )
 
-claim_agent = AmazonBedrockAgent(
+claim_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name='ClaimAgent',
         description='Specializes in handling claims and disputes.'
