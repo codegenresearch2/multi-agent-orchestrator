@@ -10,6 +10,7 @@ from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
+from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
 
 load_dotenv()
 
@@ -21,18 +22,21 @@ tech_agent = BedrockLLMAgent(
     )
 )
 
-sales_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    name='SalesAgent',
-    description='You are a sales agent. You are responsible for answering questions about sales. You are only allowed to answer questions about sales. You are not allowed to answer questions about anything else.',
-    model_id='anthropic.claude-3-haiku-20240307-v1:0',
-))
+sales_agent = BedrockLLMAgent(
+    options=BedrockLLMAgentOptions(
+        name='SalesAgent',
+        description='You are a sales agent. You are responsible for answering questions about sales. You are only allowed to answer questions about sales. You are not allowed to answer questions about anything else.',
+        model_id='anthropic.claude-3-haiku-20240307-v1:0',
+    )
+)
 
 claim_agent = AmazonBedrockAgent(AmazonBedrockAgentOptions(
     name='ClaimAgent',
     description='Specializes in handling claims and disputes.'
 ))
 
-weather_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
+weather_agent = BedrockLLMAgent(
+    options=BedrockLLMAgentOptions(
         name='WeatherAgent',
         streaming=False,
         description='Specialized agent for giving weather forecast condition from a city.',
@@ -41,23 +45,29 @@ weather_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
             'toolMaxRecursions': 5,
             'useToolHandler': weather_tool_handler
         }
-    ))
+    )
+)
 weather_agent.set_system_prompt(weather_tool_prompt)
 
-health_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    name='HealthAgent',
-    description='You are a health agent. You are responsible for answering questions about health. You are only allowed to answer questions about health. You are not allowed to answer questions about anything else.'
-))
+health_agent = BedrockLLMAgent(
+    options=BedrockLLMAgentOptions(
+        name='HealthAgent',
+        description='You are a health agent. You are responsible for answering questions about health. You are only allowed to answer questions about health. You are not allowed to answer questions about anything else.'
+    )
+)
 
-travel_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    name='TravelAgent',
-    description='You are a travel assistant agent. You are responsible for answering questions about travel, activities, sight seesing about a city and surrounding'
-))
+travel_agent = BedrockLLMAgent(
+    options=BedrockLLMAgentOptions(
+        name='TravelAgent',
+        description='You are a travel assistant agent. You are responsible for answering questions about travel, activities, sight seesing about a city and surrounding'
+    )
+)
 
-airlines_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    name='AirlinesBot',
-    description='Helps users book their flight. This bot works with US metric time and date.'
-))
+airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
+                                              description='Helps users book their flight. This bot works with US metric time and date.',
+                                              locale_id='en_US',
+                                              bot_id=os.getenv('AIRLINES_BOT_ID', None),
+                                              bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
 
 supervisor_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     name='SupervisorAgent',
