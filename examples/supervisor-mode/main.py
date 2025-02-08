@@ -30,7 +30,7 @@ sales_agent = BedrockLLMAgent(
     model_id='anthropic.claude-3-haiku-20240307-v1:0',
 )
 
-claim_agent = BedrockLLMAgent(
+claim_agent = AmazonBedrockAgent(
     options=BedrockLLMAgentOptions(
         name='ClaimAgent',
         description='Specializes in handling claims and disputes.'
@@ -131,7 +131,7 @@ if __name__ == '__main__':
         user_input = input('\nYou: ').strip()
 
         if user_input.lower() == 'quit':
-            print('Exiting the program. Goodbye!')
+            print('Exiting the program. Goodbye!')   
             sys.exit()
 
         # Run the async function
