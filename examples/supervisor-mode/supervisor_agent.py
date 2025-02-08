@@ -33,8 +33,7 @@ class SupervisorAgent(Agent):
     '''
     SupervisorAgent class.
 
-    This class represents a supervisor agent that interacts with other agents in an environment.
-    It inherits from the Agent class.
+    This class represents a supervisor agent that interacts with other agents in an environment. It inherits from the Agent class.
 
     Attributes:
         supervisor_tools (list[Tool]): List of tools available to the supervisor agent.
@@ -73,7 +72,7 @@ class SupervisorAgent(Agent):
         if not isinstance(options.extra_tools, list) or not all(isinstance(tool, Tool) for tool in options.extra_tools):
             raise ValueError('extra_tools must be a list of Tool objects')
 
-        self.tools = options.extra_tools + (options.supervisor.tool_config.get('tool', []) if hasattr(options.supervisor, 'tool_config') else [])
+        self.tools = options.extra_tools + (self.supervisor.tool_config.get('tool', []) if hasattr(self.supervisor, 'tool_config') else [])
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
                 'tool': [tool.to_bedrock_format() if self.supervisor_type == AgentProviderType.BEDROCK.value else tool.to_claude_format() for tool in self.tools],
