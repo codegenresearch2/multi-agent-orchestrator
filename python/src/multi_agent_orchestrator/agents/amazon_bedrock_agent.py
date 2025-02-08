@@ -1,1 +1,0 @@
-This module implements an Amazon Bedrock agent that interacts with a runtime client."}
