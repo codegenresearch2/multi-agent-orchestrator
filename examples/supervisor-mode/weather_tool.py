@@ -76,6 +76,6 @@ async def fetch_weather_data(input_data):
         response.raise_for_status()
         return weather_data
     except RequestException as e:
-        return str(e.response)
+        return {"error": str(e.response)}
     except Exception as e:
         return {"error": str(e)}
