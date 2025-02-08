@@ -1,7 +1,7 @@
 import json
 from typing import Any
 from tool import ToolResult
-from multi_agent_orchestrator.types import ParticipantRole
+from multi_agent_orchestrator.types import ParticipantRole, ConversationMessage
 from duckduckgo_search import DDGS
 from multi_agent_orchestrator.utils import Logger
 
@@ -15,7 +15,7 @@ search_web_tool = Tool(name='search_web',
                           },
                           required=['query'])
 
-async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> Any:
+async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> ConversationMessage:
     if not response.content:
         raise ValueError("No content blocks in response")
 
@@ -49,7 +49,10 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
         tool_results.append(formatted_result)
 
     # Create and return appropriate message format
-    return tool_results
+    return ConversationMessage(
+        role=ParticipantRole.USER.value,
+        content=tool_results
+    )
 
 
 def search_web(query: str, num_results: int = 2) -> str:
