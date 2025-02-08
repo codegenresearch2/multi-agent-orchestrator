@@ -31,19 +31,19 @@ class DynamoDbChatStorage(ChatStorage):
         )
         existing_conversation.append(timestamped_message)
 
-        trimmed_conversation = self.trim_conversation(
+        trimmed_conversation: List[TimestampedMessage] = self.trim_conversation(
             existing_conversation,
             max_history_size
         )
 
-        item = {
+        item: Dict[str, str] = {
             'PK': user_id,
             'SK': key,
             'conversation': conversation_to_dict(trimmed_conversation),
         }
 
         if self.ttl_key:
-            item[self.ttl_key] = int(time.time()) + self.ttl_duration
+            item[self.ttl_key] = str(int(time.time()) + self.ttl_duration)
 
         try:
             self.table.put_item(Item=item)
@@ -57,7 +57,7 @@ class DynamoDbChatStorage(ChatStorage):
         key = self._generate_key(user_id, session_id, agent_id)
         try:
             response = self.table.get_item(Key={'PK': user_id, 'SK': key})
-            stored_messages = self._dict_to_conversation(
+            stored_messages: List[TimestampedMessage] = self._dict_to_conversation(
                 response.get('Item', {}).get('conversation', [])
             )
             return self._remove_timestamps(stored_messages)
@@ -69,7 +69,7 @@ class DynamoDbChatStorage(ChatStorage):
         key = self._generate_key(user_id, session_id, agent_id)
         try:
             response = self.table.get_item(Key={'PK': user_id, 'SK': key})
-            stored_messages = self._dict_to_conversation(
+            stored_messages: List[TimestampedMessage] = self._dict_to_conversation(
                 response.get('Item', {}).get('conversation', [])
             )
             return stored_messages
@@ -90,7 +90,7 @@ class DynamoDbChatStorage(ChatStorage):
             if not response.get('Items'):
                 return []
 
-            all_chats = []
+            all_chats: List[ConversationMessage] = []
             for item in response['Items']:
                 if not isinstance(item.get('conversation'), list):
                     Logger.logger.error('Unexpected item structure:', item)
