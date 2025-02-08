@@ -35,7 +35,7 @@ class ComprehendFilterAgent(Agent):
         super().__init__(options)
         config = Config(region_name=options.region) if options.region else None
         self.comprehend_client = boto3.client('comprehend', config=config)
-        self.custom_checks = []
+        self.custom_checks: List[CheckFunction] = []
         self.enable_sentiment_check = options.enable_sentiment_check
         self.enable_pii_check = options.enable_pii_check
         self.enable_toxicity_check = options.enable_toxicity_check
@@ -44,8 +44,7 @@ class ComprehendFilterAgent(Agent):
         self.allow_pii = options.allow_pii
         self.language_code = self.validate_language_code(options.language_code) or 'en'
 
-    async def process_request(self,
-                              input_text: str,
+    async def process_request(self, input_text: str,
                               user_id: str,
                               session_id: str,
                               chat_history: List[ConversationMessage],
@@ -78,5 +77,5 @@ class ComprehendFilterAgent(Agent):
                 role=ParticipantRole.ASSISTANT,
                 content=[{'text': input_text}])
         except Exception as error:
-            Logger.logger.error('Error in ComprehendContentFilterAgent:', error)
+            Logger.logger.error(f'Error in ComprehendContentFilterAgent: {str(error)}')
             raise
