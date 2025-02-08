@@ -55,41 +55,6 @@ class SupervisorAgent(Agent):
         process_request(self, input_text: str, user_id: str, session_id: str, chat_history: list[ConversationMessage], additional_params: Optional[dict[str, str]] = None) -> Union[ConversationMessage, AsyncIterable[Any]]: Processes a user request.
     '''
 
-    supervisor_tools: list[Tool] = [
-        Tool(
-            name='send_messages',
-            description='Send a message to a one or multiple agents in parallel.',
-            properties={
-                'messages': {
-                    'type': 'array',
-                    'items': {
-                        'type': 'object',
-                        'properties': {
-                            'recipient': {
-                                'type': 'string',
-                                'description': 'The name of the agent to send the message to.'
-                            },
-                            'content': {
-                                'type': 'string',
-                                'description': 'The content of the message to send.'
-                            }
-                        },
-                        'required': ['recipient', 'content']
-                    },
-                    'description': 'Array of messages to send to different agents.',
-                    'minItems': 1
-                }
-            },
-            required=['messages']
-        ),
-        Tool(
-            name='get_current_date',
-            description='Get the date of today in US format.',
-            properties={},
-            required=[]
-        )
-    ]
-
     def __init__(self, options: SupervisorAgentOptions):
         '''
         Initializes a SupervisorAgent instance.
@@ -108,7 +73,7 @@ class SupervisorAgent(Agent):
         if not isinstance(options.extra_tools, list) or not all(isinstance(tool, Tool) for tool in options.extra_tools):
             raise ValueError('extra_tools must be a list of Tool objects')
 
-        self.tools = self.supervisor_tools + options.extra_tools
+        self.tools = options.extra_tools
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
                 'tool': [tool.to_bedrock_format() if self.supervisor_type == AgentProviderType.BEDROCK.value else tool.to_claude_format() for tool in self.tools],
@@ -150,16 +115,14 @@ class SupervisorAgent(Agent):
         Returns:
             str: The response from the agent.
         '''
-        Logger.info(f'\n===>>>>> Supervisor sending  {agent.name}: {content}')
         if self.trace:
-            pass
+            Logger.info(f'\n===>>>>> Supervisor sending  {agent.name}: {content}')
         agent_chat_history = asyncio.run(self.storage.fetch_chat(user_id, session_id, agent.id)) if agent.save_chat else []
         response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters))
         asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}])))
         asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f'{response.content[0].get('text', '')}'}])))
-        Logger.info(f'\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...')
         if self.trace:
-            pass
+            Logger.info(f'\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...')
         return f'{agent.name}: {response.content[0].get('text')}'
 
     async def send_messages(self, messages: list[dict[str, str]]) -> str:
@@ -288,7 +251,7 @@ class SupervisorAgent(Agent):
             f'{user_msg.role}:{user_msg.content[0].get('text', '')}\n' +
             f'{asst_msg.role}:{asst_msg.content[0].get('text', '')}\n' +
             for user_msg, asst_msg in zip(agents_history[::2], agents_history[1::2])
-            if self.id not in asst_msg.content[0].get('text', '') +
+            if self.id not in asst_msg.content[0].get('text', '')
         )
 
         self.supervisor.set_system_prompt(self.prompt_template.replace('{AGENTS_MEMORY}', agents_memory))
