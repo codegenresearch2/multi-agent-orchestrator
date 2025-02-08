@@ -119,17 +119,14 @@ class SupervisorAgent(Agent):
             raise RuntimeError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
 
     async def send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str:
-        Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}")
         if self.trace:
-            pass
+            Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}")
         agent_chat_history = await self.storage.fetch_chat(user_id, session_id, agent.id) if agent.save_chat else []
         response = await agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters)
         await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}]))
         await self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')"}}]))
-        Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:
-{response.content[0].get('text', '')[:500]}...")
         if self.trace:
-            pass
+            Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...")
         return f"{agent.name}: {response.content[0].get('text')}"
 
     async def send_messages(self, messages: list[dict[str, str]]) -> str:
