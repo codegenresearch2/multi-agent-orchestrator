@@ -1,46 +1,35 @@
-# Formatting Consistency
-def example_function(a, b):
-    result = a + b  # Correctly spaced around the operator
-    return result  # Consistent spacing around the return keyword
+import logging
+from dataclasses import dataclass
 
-# Error Logging
-try:
-    # some code that might raise an error
-except Exception as error:
-    print(f"Error message: {str(error)}")  # Consistent error logging format
+# Configure logging
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
-# String Continuation
-long_string = (
-    "This is a long string that uses a backslash for line continuation. "
-    "It helps maintain readability."
-)
+@dataclass
+class Configuration:
+    param1: str
+    param2: int
 
-# Method Definitions
 class MyClass:
-    def method_one(self, arg1):
-        # method implementation
-        pass
+    def __init__(self, config: Configuration):
+        self.config = config
 
-    def method_two(self, arg1, arg2):
-        # method implementation
-        pass
+    def process_data(self, data: list) -> list:
+        '''Processes the input data and returns the processed data.'''        
+        try:
+            processed_data = [item * 2 for item in data]  # Example processing
+            return processed_data
+        except Exception as e:
+            logger.error(f"Error processing data: {str(e)}")
+            raise
 
-# Comments and Documentation
-# This function adds two numbers
-def add_numbers(num1, num2):
-    """Adds two numbers and returns the result."""
-    return num1 + num2
-
-# Return Types and Annotations
-def calculate_sum(a: int, b: int) -> int:
-    return a + b
-
-# Functionality Completeness
-class Calculator:
-    def add(self, a: int, b: int) -> int:
-        """Adds two numbers and returns the result."""
-        return a + b
-
-    def subtract(self, a: int, b: int) -> int:
-        """Subtracts b from a and returns the result."""
-        return a - b
+# Example usage
+if __name__ == "__main__":
+    config = Configuration(param1="example", param2=123)
+    instance = MyClass(config)
+    data = [1, 2, 3, 4]
+    try:
+        result = instance.process_data(data)
+        print(result)
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
