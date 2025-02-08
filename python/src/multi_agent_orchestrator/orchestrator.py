@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 @dataclass
-class Configuration:
+class AgentConfiguration:
     param1: str
     param2: int
 
@@ -18,9 +18,9 @@ class Configuration:
         if self.param2 <= 0:
             raise ValueError('param2 must be a positive integer')
 
-class MyClass:
-    def __init__(self, config: Configuration):
-        self.config = config.validate() if config else Configuration(param1='default', param2=1)
+class AgentProcessor:
+    def __init__(self, config: AgentConfiguration):
+        self.config = config.validate() if config else AgentConfiguration(param1='default', param2=1)
 
     async def process_data_async(self, data: List[int]) -> List[int]:
         '''Asynchronously processes the input data and returns the processed data.'''        
@@ -43,8 +43,8 @@ class MyClass:
 
 # Example usage
 if __name__ == '__main__':
-    config = Configuration(param1='example', param2=123)
-    instance = MyClass(config)
+    config = AgentConfiguration(param1='example', param2=123)
+    instance = AgentProcessor(config)
     data = [1, 2, 3, 4]
     try:
         result = instance.process_data(data)  # Using synchronous method for demonstration
