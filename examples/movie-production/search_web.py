@@ -4,6 +4,16 @@ from tool import ToolResult
 from multi_agent_orchestrator.types import ParticipantRole
 from duckduckgo_search import DDGS
 
+search_web_tool = Tool(name='search_web',
+                          description='Search Web for information',
+                          properties={
+                              'query': {
+                                  'type': 'string',
+                                  'description': 'The search query'
+                              }
+                          },
+                          required=['query'])
+
 async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> Any:
     if not response.content:
         raise ValueError("No content blocks in response")
@@ -13,18 +23,18 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
 
     for block in content_blocks:
         # Determine if it's a tool use block based on platform
-        tool_use_block = block if block.type == "tool_use" else None
+        tool_use_block = block.get('toolUse') if 'toolUse' in block else None
         if not tool_use_block:
             continue
 
-        tool_name = tool_use_block.name
-        tool_id = tool_use_block.id
+        tool_name = tool_use_block.get('name')
+        tool_id = tool_use_block.get('toolUseId')
 
         # Get input based on platform
-        input_data = tool_use_block.input
+        input_data = tool_use_block.get('input', {})
 
         # Process the tool use
-        if tool_name == "search_web":
+        if tool_name == 'search_web':
             result = search_web(input_data.get('query'))
         else:
             result = f"Unknown tool use name: {tool_name}"
@@ -64,7 +74,7 @@ def search_web(query: str, num_results: int = 2) -> str:
     try:
         print(f"Searching DDG for: {query}")
         search = DDGS().text(query, max_results=num_results)
-        return ('\n'.join(result.get('body','') for result in search))
+        return '\n'.join(result.get('body','') for result in search)
 
     except Exception as e:
         print(f"Error searching for the query {query}: {e}")
