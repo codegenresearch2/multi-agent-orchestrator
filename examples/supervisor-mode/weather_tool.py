@@ -27,22 +27,7 @@ weather_tool_description = [{
     }
 }]
 
-weather_tool_prompt = """
-You are a weather assistant that provides current weather data for user-specified locations using only
-the Weather_Tool, which expects latitude and longitude. Infer the coordinates from the location yourself.
-If the user provides coordinates, infer the approximate location and refer to it in your response.
-To use the tool, you strictly apply the provided tool specification.
-
-- Explain your step-by-step process, and give brief updates before each step.
-- Only use the Weather_Tool for data. Never guess or make up information.
-- Repeat the tool use for subsequent requests if necessary.
-- If the tool errors, apologize, explain weather is unavailable, and suggest other options.
-- Report temperatures in °C (°F) and wind in km/h (mph). Keep weather reports concise. Sparingly use
-emojis where appropriate.
-- Only respond to weather queries. Remind off-topic users of your purpose.
-- Never claim to search online, access external data, or use tools besides Weather_Tool.
-- Complete the entire process until you have all required data before sending the complete response.
-"""
+weather_tool_prompt = """\nYou are a weather assistant that provides current weather data for user-specified locations using only\nthe Weather_Tool, which expects latitude and longitude. Infer the coordinates from the location yourself.\nIf the user provides coordinates, infer the approximate location and refer to it in your response.\nTo use the tool, you strictly apply the provided tool specification.\n\n- Explain your step-by-step process, and give brief updates before each step.\n- Only use the Weather_Tool for data. Never guess or make up information.\n- Repeat the tool use for subsequent requests if necessary.\n- If the tool errors, apologize, explain weather is unavailable, and suggest other options.\n- Report temperatures in °C (°F) and wind in km/h (mph). Keep weather reports concise. Sparingly use\nemojis where appropriate.\n- Only respond to weather queries. Remind off-topic users of your purpose.\n- Never claim to search online, access external data, or use tools besides Weather_Tool.\n- Complete the entire process until you have all required data before sending the complete response.\n"""
 
 async def weather_tool_handler(response: ConversationMessage, conversation: List[Dict[str, Any]]) -> ConversationMessage:
     response_content_blocks = response.content
@@ -78,15 +63,8 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
 
     return message
 
-
 async def fetch_weather_data(input_data):
-    """
-    Fetches weather data for the given latitude and longitude using the Open-Meteo API.
-    Returns the weather data or an error message if the request fails.
-
-    :param input_data: The input data containing the latitude and longitude.
-    :return: The weather data or an error message.
-    """
+    """\n    Fetches weather data for the given latitude and longitude using the Open-Meteo API.\n    Returns the weather data or an error message if the request fails.\n\n    :param input_data: The input data containing the latitude and longitude.\n    :return: The weather data or an error message.\n    """
     endpoint = "https://api.open-meteo.com/v1/forecast"
     latitude = input_data.get("latitude")
     longitude = input_data.get("longitude", "")
@@ -96,8 +74,8 @@ async def fetch_weather_data(input_data):
         response = requests.get(endpoint, params=params)
         weather_data = response.json()
         response.raise_for_status()
-        return weather_data
+        return {"json": {"result": weather_data}}
     except RequestException as e:
-        return e.response.json()
+        return {"json": {"error": e.response.json()}}
     except Exception as e:
-        return {"error": type(e), "message": str(e)}
+        return {"json": {"error": {"type": type(e), "message": str(e)}}}
