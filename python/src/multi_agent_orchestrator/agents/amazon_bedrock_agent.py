@@ -1,1 +1,0 @@
-This module implements an Amazon Bedrock agent that interacts with a runtime client."","from typing import Dict, List, Optional","from dataclasses import dataclass","import os","boto3","botocore.exceptions","multi_agent_orchestrator.agents","multi_agent_orchestrator.types","multi_agent_orchestrator.utils""
