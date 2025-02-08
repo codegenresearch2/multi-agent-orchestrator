@@ -3,6 +3,7 @@ import asyncio
 import os
 import sys
 from dotenv import load_dotenv
+from logging import Logger
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse, AgentCallbacks)
 from multi_agent_orchestrator.classifiers import ClassifierResult
