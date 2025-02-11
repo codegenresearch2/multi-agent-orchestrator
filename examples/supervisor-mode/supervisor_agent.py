@@ -15,16 +15,19 @@ class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
+
 @dataclass
 class SupervisorAgentOptions(AgentOptions):
     supervisor: Agent = None
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
+    extra_tools: list[Tool] = field(default_factory=list)
 
     # Hide inherited fields
     name: str = field(init=False)
     description: str = field(init=False)
+
 
 class SupervisorAgent(Agent):
     """
@@ -84,7 +87,6 @@ class SupervisorAgent(Agent):
         required=[]
     )]
 
-
     def __init__(self, options: SupervisorAgentOptions):
         options.name = options.supervisor.name
         options.description = options.supervisor.description
@@ -95,7 +97,7 @@ class SupervisorAgent(Agent):
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in SupervisorAgent.supervisor_tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools + options.extra_tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
@@ -107,7 +109,7 @@ class SupervisorAgent(Agent):
         self.storage = options.storage or InMemoryChatStorage()
         self.trace = options.trace
 
-        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in SupervisorAgent.supervisor_tools)
+        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in self.supervisor_tools)
         agent_list_str = "\n".join(
             f"{agent.name}: {agent.description}"
             for agent in self.team
@@ -165,11 +167,14 @@ When communicating with other agents, including the User, please follow these gu
             Logger.debug(f"Supervisor {self.supervisor.__class__} is not supported")
             raise RuntimeError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
 
-
     def send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> 'str':
         Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}") if self.trace else None
         agent_chat_history = asyncio.run(self.storage.fetch_chat(user_id, session_id, agent.id)) if agent.save_chat else []
-        response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters))
+        try:
+            response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters))
+        except Exception as e:
+            Logger.error(f"Error processing message to {agent.name}: {e}")
+            return "An error occurred while processing the message."
         asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}]))) if agent.save_chat else None
         asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')}"}]))) if agent.save_chat else None
         Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...") if self.trace else None
@@ -202,11 +207,9 @@ When communicating with other agents, including the User, please follow these gu
             return ''.join(responses)
         return ''
 
-
     async def get_current_date(self):
         Logger.info('Using Tool : get_current_date')
         return datetime.now(timezone.utc).strftime('%m/%d/%Y')  # from datetime import datetime, timezone
-
 
     async def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]],) -> Any:
         if not response.content:
@@ -241,7 +244,11 @@ When communicating with other agents, including the User, please follow these gu
             )
 
             # Process the tool use
-            result = await self._process_tool(tool_name, input_data)
+            try:
+                result = await self._process_tool(tool_name, input_data)
+            except Exception as e:
+                Logger.error(f"Error processing tool {tool_name}: {e}")
+                continue
 
             # Create tool result
             tool_result = ToolResult(tool_id, result)
@@ -255,18 +262,17 @@ When communicating with other agents, including the User, please follow these gu
 
             tool_results.append(formatted_result)
 
-            # Create and return appropriate message format
-            if self.supervisor_type == SupervisorType.BEDROCK.value:
-                return ConversationMessage(
-                    role=ParticipantRole.USER.value,
-                    content=tool_results
-                )
-            else:
-                return {
-                    'role': ParticipantRole.USER.value,
-                    'content': tool_results
-                }
-
+        # Create and return appropriate message format
+        if self.supervisor_type == SupervisorType.BEDROCK.value:
+            return ConversationMessage(
+                role=ParticipantRole.USER.value,
+                content=tool_results
+            )
+        else:
+            return {
+                'role': ParticipantRole.USER.value,
+                'content': tool_results
+            }
 
     async def _process_tool(self, tool_name: str, input_data: dict) -> Any:
         """Process tool use based on tool name."""
@@ -279,7 +285,7 @@ When communicating with other agents, including the User, please follow these gu
         else:
             error_msg = f"Unknown tool use name: {tool_name}"
             Logger.error(error_msg)
-            return error_msg
+            raise ValueError(error_msg)
 
     async def process_request(
         self,
@@ -305,7 +311,11 @@ When communicating with other agents, including the User, please follow these gu
         # update prompt with agents memory
         self.supervisor.set_system_prompt(self.prompt_template.replace('{AGENTS_MEMORY}', agents_memory))
         # call the supervisor
-        response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        try:
+            response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        except Exception as e:
+            Logger.error(f"Error processing request: {e}")
+            return "An error occurred while processing your request."
         return response
 
     def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
