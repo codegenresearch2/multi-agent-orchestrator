@@ -12,14 +12,12 @@ class LexBotAgentOptions(AgentOptions):
     bot_id: str = None
     bot_alias_id: str = None
     locale_id: str = None
+    region: str = None
 
 class LexBotAgent(Agent):
     def __init__(self, options: LexBotAgentOptions):
         super().__init__(options)
-        if (options.region is None):
-            self.region = os.environ.get("AWS_REGION", 'us-east-1')
-        else:
-            self.region = options.region
+        self.region = options.region if options.region else os.environ.get("AWS_REGION", 'us-east-1')
         self.lex_client = boto3.client('lexv2-runtime', region_name=self.region)
         self.bot_id = options.bot_id
         self.bot_alias_id = options.bot_alias_id
@@ -56,4 +54,3 @@ class LexBotAgent(Agent):
         except (BotoCoreError, ClientError) as error:
             Logger.error(f"Error processing request: {str(error)}")
             raise
-
