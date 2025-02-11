@@ -7,8 +7,7 @@ from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.utils import Logger
 from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
-from tool import Tool, ToolResult
-from datetime import datetime, timezone
+from tool import Tool, ToolResult, Tools
 
 class AgentProviderType(Enum):
     BEDROCK = "BEDROCK"
@@ -20,7 +19,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
-    extra_tools: list[Tool] = field(default_factory=list)
+    extra_tools: Union[Tools, list[Tool]] = field(default_factory=list)
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -60,7 +59,14 @@ class SupervisorAgent(Agent):
         self.supervisor = options.supervisor
         self.team = options.team
         self.supervisor_type = AgentProviderType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else AgentProviderType.ANTHROPIC.value
-        self.supervisor_tools = options.extra_tools + SupervisorAgent.supervisor_tools
+
+        if isinstance(options.extra_tools, Tools):
+            self.supervisor_tools = options.extra_tools.tools + self.supervisor_tools
+        elif isinstance(options.extra_tools, list):
+            self.supervisor_tools = options.extra_tools + self.supervisor_tools
+        else:
+            raise ValueError("extra_tools must be a Tools object or a list of Tool objects")
+
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
                 'tool': [tool.to_bedrock_format() if self.supervisor_type == AgentProviderType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools],
