@@ -24,26 +24,25 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
     content_blocks = response.content
 
     for block in content_blocks:
-        # Use a conditional check to see if "toolUse" is in the block
-        if 'toolUse' in block:
-            tool_use_block = block['toolUse']
-            tool_name = tool_use_block.get('name')
-            tool_id = tool_use_block.get('toolUseId')
-            input_data = tool_use_block.get('input', {})
+        # Streamlined approach to directly assign the `tool_use_block` variable
+        tool_use_block = block.get('toolUse', {})
+        tool_name = tool_use_block.get('name')
+        tool_id = tool_use_block.get('toolUseId')
+        input_data = tool_use_block.get('input', {})
 
-            # Process the tool use
-            if tool_name == "search_web":
-                result = search_web(input_data.get('query'))
-            else:
-                result = f"Unknown tool use name: {tool_name}"
+        # Process the tool use
+        if tool_name == "search_web":
+            result = search_web(input_data.get('query'))
+        else:
+            result = f"Unknown tool use name: {tool_name}"
 
-            # Create tool result
-            tool_result = ToolResult(tool_id, result)
+        # Create tool result
+        tool_result = ToolResult(tool_id, result)
 
-            # Format according to platform
-            formatted_result = tool_result.to_bedrock_format()
+        # Format according to platform
+        formatted_result = tool_result.to_bedrock_format()
 
-            tool_results.append(formatted_result)
+        tool_results.append(formatted_result)
 
     # Create and return appropriate message format
     return ConversationMessage(
