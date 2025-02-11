@@ -8,7 +8,7 @@ class ChainAgentOptions(AgentOptions):
         super().__init__(**kwargs)
         self.agents = agents
         self.default_output = default_output or "No output generated from the chain."
-        if len(self.agents) == 0:
+        if not self.agents:
             raise ValueError("ChainAgent requires at least one agent in the chain.")
 
 class ChainAgent(Agent):
