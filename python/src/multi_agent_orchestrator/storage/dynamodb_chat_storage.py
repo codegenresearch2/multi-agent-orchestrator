@@ -1,8 +1,8 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Optional
 import time
 import boto3
 from multi_agent_orchestrator.storage import ChatStorage
-from multi_agent_orchestrator.types import ConversationMessage, TimestampedMessage, ParticipantRole
+from multi_agent_orchestrator.types import ConversationMessage, TimestampedMessage
 from multi_agent_orchestrator.utils import Logger, conversation_to_dict
 
 class DynamoDbChatStorage(ChatStorage):
@@ -42,14 +42,14 @@ class DynamoDbChatStorage(ChatStorage):
 
         trimmed_conversation: List[TimestampedMessage] = self.trim_conversation(existing_conversation, max_history_size)
 
-        item: Dict[str, Union[str, List[Dict], int]] = {
+        item: Dict[str, str] = {
             'PK': user_id,
             'SK': key,
             'conversation': conversation_to_dict(trimmed_conversation)
         }
 
         if self.ttl_key:
-            item[self.ttl_key] = int(time.time()) + self.ttl_duration
+            item[self.ttl_key] = str(int(time.time()) + self.ttl_duration)
 
         try:
             self.table.put_item(Item=item)
@@ -101,7 +101,7 @@ class DynamoDbChatStorage(ChatStorage):
                 agent_id = item['SK'].split('#')[1]
                 for msg in item['conversation']:
                     content = msg['content']
-                    if msg['role'] == ParticipantRole.ASSISTANT.value:
+                    if msg['role'] == 'assistant':
                         text = content[0]['text'] if isinstance(content, list) else content
                         content = [{'text': f"[{agent_id}] {text}"}]
                     elif not isinstance(content, list):
