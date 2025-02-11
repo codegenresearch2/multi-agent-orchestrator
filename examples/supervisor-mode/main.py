@@ -14,7 +14,7 @@ from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
 from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 load_dotenv()
@@ -75,7 +75,7 @@ airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
                                               bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
 
 async def get_current_date():
-    current_date = datetime.now().strftime('%Y-%m-%d')
+    current_date = datetime.now(timezone.utc).strftime('%m/%d/%Y')
     logger.info(f"Current date: {current_date}")
     return current_date
 
