@@ -94,11 +94,10 @@ class SupervisorAgent(Agent):
 
     def __init__(self, options: SupervisorAgentOptions):
         super().__init__(options)
-        if isinstance(options.supervisor, AnthropicAgent):
-            self.supervisor = options.supervisor
+        self.supervisor = options.supervisor
+        if isinstance(self.supervisor, AnthropicAgent):
             self.supervisor_type = SupervisorType.ANTHROPIC.value
-        elif isinstance(options.supervisor, BedrockLLMAgent):
-            self.supervisor = options.supervisor
+        elif isinstance(self.supervisor, BedrockLLMAgent):
             self.supervisor_type = SupervisorType.BEDROCK.value
         else:
             raise ValueError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
