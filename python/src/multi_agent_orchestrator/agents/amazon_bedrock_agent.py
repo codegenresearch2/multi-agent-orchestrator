@@ -66,11 +66,9 @@ class AmazonBedrockAgent(Agent):
             completion = ""
             for event in response.get('completion', []):
                 chunk = event.get('chunk')
-                if 'chunk' in event:
+                if chunk:
                     decoded_response = chunk['bytes'].decode('utf-8')
                     completion += decoded_response
-                else:
-                    Logger.warn("Received a chunk event with no chunk data")
 
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
