@@ -10,11 +10,9 @@ from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
 from tool import Tool, ToolResult
 from datetime import datetime, timezone
 
-
 class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
-
 
 @dataclass
 class SupervisorAgentOptions(AgentOptions):
@@ -26,7 +24,6 @@ class SupervisorAgentOptions(AgentOptions):
     # Hide inherited fields
     name: str = field(init=False)
     description: str = field(init=False)
-
 
 class SupervisorAgent(Agent):
     """
@@ -95,9 +92,8 @@ class SupervisorAgent(Agent):
         self.team = options.team
         self.supervisor_type = options.supervisor.type
         if not self.supervisor.tool_config:
-            tools = self.supervisor_tools + options.extra_tools
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
