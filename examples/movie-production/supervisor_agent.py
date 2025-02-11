@@ -5,14 +5,16 @@ from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 
+# Conditional import for AnthropicAgent
 try:
     from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent, AnthropicAgent
     from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
     from multi_agent_orchestrator.utils import Logger
     from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
     from tool import Tool, ToolResult
+    ANTHROPIC_AVAILABLE = True
 except ImportError:
-    # Placeholder classes for import errors
+    ANTHROPIC_AVAILABLE = False
     class Agent:
         def __init__(self, options):
             self.options = options
