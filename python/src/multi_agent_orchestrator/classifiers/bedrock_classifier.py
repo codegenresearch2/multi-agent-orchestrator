@@ -28,10 +28,10 @@ class BedrockClassifier(Classifier):
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
         self.system_prompt: str = "You are an AI assistant."  # Initialize system prompt without initial value
         self.inference_config: Dict[str, Any] = {
-            'maxTokens': options.inference_config.get('max_tokens', 1000),
+            'max_tokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'topP': options.inference_config.get('top_p', 0.9),
-            'stopSequences': options.inference_config.get('stop_sequences', [])
+            'top_p': options.inference_config.get('top_p', 0.9),
+            'stop_sequences': options.inference_config.get('stop_sequences', [])
         }
         self.tools: List[Dict] = [
             {
@@ -84,10 +84,10 @@ class BedrockClassifier(Classifier):
                     },
                 },
                 "inferenceConfig": {
-                    "maxTokens": self.inference_config['maxTokens'],
+                    "maxTokens": self.inference_config['max_tokens'],
                     "temperature": self.inference_config['temperature'],
-                    "topP": self.inference_config['topP'],
-                    "stopSequences": self.inference_config['stopSequences'],
+                    "topP": self.inference_config['top_p'],
+                    "stopSequences": self.inference_config['stop_sequences'],
                 }
             }
 
