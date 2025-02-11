@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from typing import Optional, Any, AsyncIterable, Union
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -96,7 +97,7 @@ except ImportError:
 @dataclass
 class SupervisorAgentOptions(AgentOptions):
     supervisor: Agent = None
-    team: list[Agent] = None
+    team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
 
@@ -143,7 +144,7 @@ class SupervisorAgent(Agent):
     def __init__(self, options: SupervisorAgentOptions):
         super().__init__(options)
         self.supervisor: Union[AnthropicAgent, BedrockLLMAgent] = options.supervisor
-        self.team = options.team if options.team is not None else []
+        self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
