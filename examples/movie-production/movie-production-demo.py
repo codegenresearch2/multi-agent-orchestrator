@@ -7,12 +7,12 @@ from search_web import tool_handler
 from tool import Tool, ToolResult
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (
-    AnthropicAgent, AnthropicAgentOptions,
+    BedrockLLMAgent, BedrockLLMAgentOptions,
     AgentResponse
 )
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
-from supervisor import SupervisorMode, SupervisorModeOptions
+from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
 
 # Set up the Streamlit app
 st.title("AI Movie Production Demo 🎬")
@@ -31,31 +31,7 @@ search_web_tool = Tool(name='search_web',
                           },
                           required=['query'])
 
-class ScriptWriterAgent(AnthropicAgent):
-    def __init__(self, options: AnthropicAgentOptions):
-        super().__init__(options)
-
-    async def generate_script_outline(self, movie_idea: str, genre: str, target_audience: str, estimated_runtime: int):
-        # Implementation for generating script outline
-        pass
-
-class CastingDirectorAgent(AnthropicAgent):
-    def __init__(self, options: AnthropicAgentOptions):
-        super().__init__(options)
-
-    async def suggest_actors(self, script_outline: str):
-        # Implementation for suggesting actors
-        pass
-
-class MovieProducerSupervisor(AnthropicAgent):
-    def __init__(self, options: AnthropicAgentOptions):
-        super().__init__(options)
-
-    async def oversee_process(self, script_writer: ScriptWriterAgent, casting_director: CastingDirectorAgent, movie_idea: str, genre: str, target_audience: str, estimated_runtime: int):
-        # Implementation for overseeing the process
-        pass
-
-script_writer_agent = ScriptWriterAgent(AnthropicAgentOptions(
+script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="ScriptWriterAgent",
     description="""\
@@ -66,9 +42,11 @@ Your tasks consist of:
 1. Write a script outline with 3-5 main characters and key plot points
 2. Outline the three-act structure and suggest 2-3 twists.
 3. Ensure the script aligns with the specified genre and target audience
-"""))
+""",
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+))
 
-casting_director_agent = CastingDirectorAgent(AnthropicAgentOptions(
+casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="CastingDirectorAgent",
     description="""\
@@ -82,16 +60,16 @@ Your tasks consist of:
 4. Consider diversity and representation in your casting choices.
 5. Provide a final response with all the actors you suggest for the main roles
 """,
-
-tool_config={
-    'tool': [search_web_tool.to_claude_format()],
-    'toolMaxRecursions': 20,
-    'useToolHandler': tool_handler
+    model_id=f"arn:aws:bedrock:us-east-1:{os.getenv('AWS_ACCOUNT_ID')}:default-prompt-router/anthropic.claude:1",
+    tool_config={
+        'tool': [search_web_tool.to_bedrock_format()],
+        'toolMaxRecursions': 20,
+        'useToolHandler': tool_handler
     },
     save_chat=False
 ))
 
-movie_producer_supervisor = MovieProducerSupervisor(AnthropicAgentOptions(
+supervisor_agent = SupervisorAgent(SupervisorAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
     description="""
@@ -106,10 +84,20 @@ Your tasks consist of:
 """,
 ))
 
-supervisor = SupervisorMode(SupervisorModeOptions(
-    supervisor=movie_producer_supervisor,
-    team=[script_writer_agent, casting_director_agent],
-    trace=True
+supervisor = SupervisorAgent(SupervisorAgentOptions(
+    api_key=os.getenv('ANTHROPIC_API_KEY', None),
+    name='MovieProducerSupervisor',
+    description="""
+Experienced movie producer overseeing script and casting.
+
+Your tasks consist of:
+1. Ask ScriptWriter Agent for a script outline based on the movie idea.
+2. Pass the outline to CastingDirectorAgent for casting suggestions.
+3. Summarize the script outline and casting suggestions.
+4. Provide a concise movie concept overview.
+5. Make sure to respond with a markdown format without mentioning it.
+""",
+    team=[script_writer_agent, casting_director_agent]
 ))
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
