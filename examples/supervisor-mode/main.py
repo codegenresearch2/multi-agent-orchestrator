@@ -1,19 +1,26 @@
+import os
+import sys
+import uuid
+import asyncio
+from dotenv import load_dotenv
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (
     BedrockLLMAgent, BedrockLLMAgentOptions,
-    AgentResponse,
-    LexBotAgent, LexBotAgentOptions,
+    AmazonBedrockAgent, AmazonBedrockAgentOptions,
+    AnthropicAgent, AnthropicAgentOptions,
+    LexBotAgent, LexBotAgentOptions
 )
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
-from typing import Any
-import sys, asyncio, uuid
-import os
+from logging import Logger, basicConfig, getLogger
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
-from dotenv import load_dotenv
 
 load_dotenv()
+
+# Initialize logging
+basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
+logger: Logger = getLogger(__name__)
 
 tech_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
@@ -49,7 +56,7 @@ health_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
 
 travel_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     name="TravelAgent",
-    description="You are a travel assistant agent. You are responsible for answering questions about travel, activities, sight seesing about a city and surrounding",
+    description="You are a travel assistant agent. You are responsible for answering questions about travel, activities, sight seeing about a city and surrounding",
     model_id="anthropic.claude-3-haiku-20240307-v1:0",
 ))
 
@@ -59,10 +66,21 @@ airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
                                               bot_id=os.getenv('AIRLINES_BOT_ID', None),
                                               bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
 
-if __name__ == "__main__":
+claim_agent = AmazonBedrockAgent(AmazonBedrockAgentOptions(
+    name="ClaimAgent",
+    description="Specializes in handling claims and disputes.",
+    agent_id=os.getenv('CLAIM_AGENT_ID',None),
+    agent_alias_id=os.getenv('CLAIM_AGENT_ALIAS_ID',None)
+))
 
-    # Initialize the orchestrator with some options
-    orchestrator = MultiAgentOrchestrator(options=OrchestratorConfig(
+supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
+    api_key=os.getenv('ANTHROPIC_API_KEY', None),
+    name="SupervisorAgent",
+    description="You are a supervisor agent. You are responsible for managing the flow of the conversation. You are only allowed to manage the flow of the conversation. You are not allowed to answer questions about anything else.",
+    model_id="claude-3-5-sonnet-latest"
+))
+
+supervisor = MultiAgentOrchestrator(options=OrchestratorConfig(
         LOG_AGENT_CHAT=True,
         LOG_CLASSIFIER_CHAT=True,
         LOG_CLASSIFIER_RAW_OUTPUT=True,
@@ -74,16 +92,35 @@ if __name__ == "__main__":
     ),
     storage=DynamoDbChatStorage(
         table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
-        region='us-east-1')
+        region='us-east-1'
     )
+)
 
-    # Add agents to the orchestrator
-    orchestrator.add_agent(tech_agent)
-    orchestrator.add_agent(sales_agent)
-    orchestrator.add_agent(weather_agent)
-    orchestrator.add_agent(health_agent)
-    orchestrator.add_agent(travel_agent)
-    orchestrator.add_agent(airlines_agent)
+# Add agents to the orchestrator
+supervisor.add_agent(tech_agent)
+supervisor.add_agent(sales_agent)
+supervisor.add_agent(weather_agent)
+supervisor.add_agent(health_agent)
+supervisor.add_agent(travel_agent)
+supervisor.add_agent(airlines_agent)
+supervisor.add_agent(claim_agent)
+
+async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input:str, _user_id:str, _session_id:str):
+    classifier_result=ClassifierResult(selected_agent=supervisor_agent, confidence=1.0)
+
+    response:AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
+
+    # Print metadata
+    print("\nMetadata:")
+    print(f"Selected Agent: {response.metadata.agent_name}")
+    if isinstance(response, AgentResponse) and response.streaming is False:
+        # Handle regular response
+        if isinstance(response.output, str):
+            print(response.output)
+        elif isinstance(response.output, ConversationMessage):
+                print(response.output.content[0].get('text'))
+
+if __name__ == "__main__":
 
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
@@ -97,6 +134,7 @@ Here is the list of available agents:
 - AirlinesBot: I can help you book a flight
 - WeatherAgent: I can tell you the weather in a given city
 - TravelAgent: I can help you plan your next trip.
+- ClaimAgent: Anything regarding the current claim you have or general information about them.
 """)
 
     while True:
@@ -109,19 +147,4 @@ Here is the list of available agents:
 
         # Run the async function
         if user_input is not None and user_input != '':
-            asyncio.run(handle_request(orchestrator, user_input, USER_ID, SESSION_ID))
-
-async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input:str, _user_id:str, _session_id:str):
-    classifier_result=ClassifierResult(selected_agent=_orchestrator.default_agent, confidence=1.0)
-
-    response:AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
-
-    # Print metadata
-    print("\nMetadata:")
-    print(f"Selected Agent: {response.metadata.agent_name}")
-    if isinstance(response, AgentResponse) and response.streaming is False:
-        # Handle regular response
-        if isinstance(response.output, str):
-            print(response.output)
-        elif isinstance(response.output, ConversationMessage):
-                print(response.output.content[0].get('text'))
+            asyncio.run(handle_request(supervisor, user_input, USER_ID, SESSION_ID))
