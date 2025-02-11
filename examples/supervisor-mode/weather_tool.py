@@ -1,9 +1,11 @@
 import requests
 from requests.exceptions import RequestException
-from typing import Any
+from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
+from multi_agent_orchestrator.utils import Tool, Tools
+import json
 
-
+# Define the tools for flexibility
 weather_tool_description = [{
     "toolSpec": {
         "name": "Weather_Tool",
@@ -27,6 +29,7 @@ weather_tool_description = [{
     }
 }]
 
+# Define the prompt for the weather tool
 weather_tool_prompt = """
 You are a weather assistant that provides current weather data for user-specified locations using only
 the Weather_Tool, which expects latitude and longitude. Infer the coordinates from the location yourself.
@@ -44,8 +47,8 @@ To use the tool, you strictly apply the provided tool specification.
 - Complete the entire process until you have all required data before sending the complete response.
 """
 
-
-async def weather_tool_handler(response: ConversationMessage, conversation: list[dict[str, Any]]) -> ConversationMessage:
+# Define the handler for the weather tool
+async def weather_tool_handler(response: ConversationMessage, conversation: List[Dict[str, Any]]) -> ConversationMessage:
     response_content_blocks = response.content
 
     # Initialize an empty list of tool results
@@ -68,7 +71,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: list
                 tool_results.append({
                     "toolResult": {
                         "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": {"result": tool_response}}],
+                        "content": [{"json": tool_response}],
                     }
                 })
 
@@ -79,7 +82,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: list
 
     return message
 
-
+# Define the function to fetch weather data
 async def fetch_weather_data(input_data):
     """
     Fetches weather data for the given latitude and longitude using the Open-Meteo API.
@@ -103,3 +106,9 @@ async def fetch_weather_data(input_data):
         return e.response.json()
     except Exception as e:
         return {"error": type(e), "message": str(e)}
+
+# Define the weather tools
+weather_tools: Tools = Tools(tools=[Tool(name="Weather_Tool",
+                            description="Get the current weather for a given location, based on its WGS84 coordinates.",
+                            func=fetch_weather_data
+                            )])
