@@ -16,16 +16,18 @@ st.caption("Bring your movie ideas to life with the teams of script writing and 
 anthropic_api_key = st.text_input("Enter Anthropic API Key to access Claude Sonnet 3.5", type="password", value=os.getenv('ANTHROPIC_API_KEY', None))
 
 # Initialize the orchestrator with some options
-orchestrator = MultiAgentOrchestrator(options=OrchestratorConfig(
-    LOG_AGENT_CHAT=True,
-    LOG_CLASSIFIER_CHAT=True,
-    LOG_CLASSIFIER_RAW_OUTPUT=True,
-    LOG_CLASSIFIER_OUTPUT=True,
-    LOG_EXECUTION_TIMES=True,
-    MAX_RETRIES=3,
-    USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED=True,
-    MAX_MESSAGE_PAIRS_PER_AGENT=10,
-))
+orchestrator = MultiAgentOrchestrator(
+    options=OrchestratorConfig(
+        LOG_AGENT_CHAT=True,
+        LOG_CLASSIFIER_CHAT=True,
+        LOG_CLASSIFIER_RAW_OUTPUT=True,
+        LOG_CLASSIFIER_OUTPUT=True,
+        LOG_EXECUTION_TIMES=True,
+        MAX_RETRIES=3,
+        USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED=True,
+        MAX_MESSAGE_PAIRS_PER_AGENT=10,
+    )
+)
 
 # Define the search web tool
 search_web_tool = {
@@ -41,10 +43,11 @@ search_web_tool = {
 }
 
 # Define agents
-script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    api_key=os.getenv('ANTHROPIC_API_KEY', None),
-    name="ScriptWriterAgent",
-    description="""\
+script_writer_agent = BedrockLLMAgent(
+    BedrockLLMAgentOptions(
+        api_key=os.getenv('ANTHROPIC_API_KEY', None),
+        name="ScriptWriterAgent",
+        description="""\
 You are an expert screenplay writer. Given a movie idea and genre,
 develop a compelling script outline with character descriptions and key plot points.
 
@@ -53,13 +56,15 @@ Your tasks consist of:
 2. Outline the three-act structure and suggest 2-3 twists.
 3. Ensure the script aligns with the specified genre and target audience
 """,
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0"
-))
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+    )
+)
 
-casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    api_key=os.getenv('ANTHROPIC_API_KEY', None),
-    name="CastingDirectorAgent",
-    description="""\
+casting_director_agent = BedrockLLMAgent(
+    BedrockLLMAgentOptions(
+        api_key=os.getenv('ANTHROPIC_API_KEY', None),
+        name="CastingDirectorAgent",
+        description="""\
 You are a talented casting director. Given a script outline and character descriptions,\
 suggest suitable actors for the main roles, considering their past performances and current availability.
 
@@ -70,19 +75,21 @@ Your tasks consist of:
 4. Consider diversity and representation in your casting choices.
 5. Provide a final response with all the actors you suggest for the main roles
 """,
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-    tool_config={
-        "tools": [search_web_tool],
-        "toolMaxRecursions": 20,
-        "useToolHandler": None
-    }
-))
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+        tool_config={
+            "tools": [search_web_tool],
+            "toolMaxRecursions": 20,
+            "useToolHandler": None
+        }
+    )
+)
 
 # Initialize the supervisor agent with the team
-supervisor = SupervisorAgent(SupervisorAgentOptions(
-    api_key=os.getenv('ANTHROPIC_API_KEY', None),
-    name='MovieProducerAgent',
-    description="""
+supervisor = SupervisorAgent(
+    SupervisorAgentOptions(
+        api_key=os.getenv('ANTHROPIC_API_KEY', None),
+        name='MovieProducerAgent',
+        description="""
 Experienced movie producer overseeing script and casting.
 
 Your tasks consist of:
@@ -92,8 +99,9 @@ Your tasks consist of:
 4. Provide a concise movie concept overview.
 5. Make sure to respond with a markdown format without mentioning it.
 """,
-    team=[script_writer_agent, casting_director_agent]
-))
+        team=[script_writer_agent, casting_director_agent]
+    )
+)
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
     classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
