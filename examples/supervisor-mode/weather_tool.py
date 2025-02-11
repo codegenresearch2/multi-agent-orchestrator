@@ -64,13 +64,21 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
             tool_use_name = tool_use_block.get("name")
 
             if tool_use_name == "Weather_Tool":
-                tool_response = await fetch_weather_data(tool_use_block["input"])
-                tool_results.append({
-                    "toolResult": {
-                        "toolUseId": tool_use_block["toolUseId"],
-                        "content": [tool_response],
-                    }
-                })
+                try:
+                    tool_response = await fetch_weather_data(tool_use_block["input"])
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": tool_response}],
+                        }
+                    })
+                except RequestException as e:
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": {"error": str(e.response.json()) if e.response else str(e)}}],
+                        }
+                    })
 
     # Embed the tool results in a new user message
     message = ConversationMessage(
