@@ -9,7 +9,7 @@ from multi_agent_orchestrator.agents import (
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
-from multi_agent_orchestrator.utils import Logger
+from multi_agent_orchestrator.utils import Logger, Tool
 from datetime import datetime, timezone
 import sys, asyncio, uuid
 import os
@@ -81,7 +81,9 @@ async def get_current_date():
     """
     Returns the current date in the format 'YYYY-MM-DD'.
     """
-    return datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    current_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    Logger.info(f"Current date: {current_date}")
+    return current_date
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
     try:
@@ -119,6 +121,19 @@ if __name__ == "__main__":
         table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
         region='us-east-1'
     ))
+
+    # Initialize the supervisor agent with a team of agents
+    supervisor = SupervisorAgent(
+        SupervisorAgentOptions(
+            supervisor=supervisor_agent,
+            team=[airlines_agent, travel_agent, tech_agent, sales_agent, health_agent, claim_agent],
+            storage=DynamoDbChatStorage(
+                table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
+                region='us-east-1'
+            ),
+            trace=True
+        )
+    )
 
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
