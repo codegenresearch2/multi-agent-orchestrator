@@ -4,17 +4,17 @@ from multi_agent_orchestrator.utils.logger import Logger
 from .agent import Agent, AgentOptions
 
 class ChainAgentOptions(AgentOptions):
-    def __init__(self, agents: List[Agent], default_output: Optional[str] = None, **kwargs):
+    def __init__(self, agents: List[Agent], default_output: Optional[str] = "No output generated from the chain.", **kwargs):
         super().__init__(**kwargs)
         self.agents = agents
-        self.default_output = default_output  # Direct assignment without or operator
+        self.default_output = default_output
 
 class ChainAgent(Agent):
     def __init__(self, options: ChainAgentOptions):
         super().__init__(options)
         self.agents = options.agents
-        self.default_output = options.default_output  # Direct assignment
-        if not self.agents:
+        self.default_output = options.default_output  # Direct assignment with fallback value
+        if len(self.agents) == 0:
             raise ValueError("ChainAgent requires at least one agent in the chain.")
 
     async def process_request(
