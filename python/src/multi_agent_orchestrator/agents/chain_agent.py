@@ -8,14 +8,14 @@ class ChainAgentOptions(AgentOptions):
         super().__init__(**kwargs)
         self.agents = agents
         self.default_output = default_output or "No output generated from the chain."
-        if not self.agents:
-            raise ValueError("ChainAgent requires at least one agent in the chain.")
 
 class ChainAgent(Agent):
     def __init__(self, options: ChainAgentOptions):
         super().__init__(options)
         self.agents = options.agents
         self.default_output = options.default_output
+        if not self.agents:
+            raise ValueError("ChainAgent requires at least one agent in the chain.")
 
     async def process_request(
         self,
