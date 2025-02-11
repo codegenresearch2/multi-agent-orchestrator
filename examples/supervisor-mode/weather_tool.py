@@ -1,6 +1,6 @@
 import requests
 from requests.exceptions import RequestException
-from typing import Any
+from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 
 
@@ -45,7 +45,7 @@ To use the tool, you strictly apply the provided tool specification.
 """
 
 
-async def weather_tool_handler(response: ConversationMessage, conversation: list[dict[str, Any]]) -> ConversationMessage:
+async def weather_tool_handler(response: ConversationMessage, conversation: List[Dict[str, Any]]) -> ConversationMessage:
     response_content_blocks = response.content
 
     # Initialize an empty list of tool results
@@ -64,13 +64,21 @@ async def weather_tool_handler(response: ConversationMessage, conversation: list
             tool_use_name = tool_use_block.get("name")
 
             if tool_use_name == "Weather_Tool":
-                tool_response = await fetch_weather_data(tool_use_block["input"])
-                tool_results.append({
-                    "toolResult": {
-                        "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": {"result": tool_response}}],
-                    }
-                })
+                try:
+                    tool_response = await fetch_weather_data(tool_use_block["input"])
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": tool_response}],
+                        }
+                    })
+                except Exception as e:
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": {"error": str(e)}}],
+                        }
+                    })
 
     # Embed the tool results in a new user message
     message = ConversationMessage(
@@ -102,4 +110,4 @@ async def fetch_weather_data(input_data):
     except RequestException as e:
         return e.response.json()
     except Exception as e:
-        return {"error": type(e), "message": str(e)}
+        return {"error": str(e)}
