@@ -30,7 +30,7 @@ search_web_tool = Tool(name='search_web',
 
 script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     name="ScriptWriterAgent",
-    description="""\
+    description="""
 You are an expert screenplay writer. Given a movie idea and genre,
 develop a compelling script outline with character descriptions and key plot points.
 
@@ -44,8 +44,8 @@ Your tasks consist of:
 
 casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     name="CastingDirectorAgent",
-    description="""\
-You are a talented casting director. Given a script outline and character descriptions,\
+    description="""
+You are a talented casting director. Given a script outline and character descriptions,
 suggest suitable actors for the main roles, considering their past performances and current availability.
 
 Your tasks consist of:
