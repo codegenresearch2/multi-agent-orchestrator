@@ -43,23 +43,23 @@ class ChainAgent(Agent):
                         current_input = response.content[0]['text']
                         final_response = response
                     else:
-                        Logger.log_error(f"Agent {agent.name} returned no text content.")
+                        Logger.logger.warning(f"Agent {agent.name} returned no text content.")
                         return self.create_default_response()
                 elif self.is_async_iterable(response):
                     if not is_last_agent:
-                        Logger.log_error(f"Intermediate agent {agent.name} returned a streaming response, which is not allowed.")
+                        Logger.logger.warning(f"Intermediate agent {agent.name} returned a streaming response, which is not allowed.")
                         return self.create_default_response()
                     final_response = response
                 else:
-                    Logger.log_error(f"Agent {agent.name} returned an invalid response type.")
+                    Logger.logger.warning(f"Agent {agent.name} returned an invalid response type.")
                     return self.create_default_response()
 
                 if not is_last_agent and not self.is_conversation_message(final_response):
-                    Logger.log_error(f"Expected non-streaming response from intermediate agent {agent.name}")
+                    Logger.logger.error(f"Expected non-streaming response from intermediate agent {agent.name}")
                     return self.create_default_response()
 
             except Exception as error:
-                Logger.log_error(f"Error processing request with agent {agent.name}: {error}")
+                Logger.logger.error(f"Error processing request with agent {agent.name}: {error}")
                 return self.create_default_response()
 
         return final_response
