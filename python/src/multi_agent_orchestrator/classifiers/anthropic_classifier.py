@@ -16,10 +16,10 @@ class AnthropicClassifierOptions:
     
     Attributes:
         api_key (str): The API key for the Anthropic service.
-        model_id (Optional[str]): The ID of the model to use. Defaults to CLAUDE_3_5_SONNET.
+        model_id (Optional[str]): The ID of the model to use. Defaults to None.
         inference_config (Optional[Dict[str, Any]]): Configuration for the inference.
     """
-    def __init__(self, api_key: str, model_id: Optional[str] = ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET, inference_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, api_key: str, model_id: Optional[str] = None, inference_config: Optional[Dict[str, Any]] = None):
         self.api_key = api_key
         self.model_id = model_id
         self.inference_config = inference_config if inference_config is not None else {}
@@ -39,15 +39,15 @@ class AnthropicClassifier(Classifier):
         if not options.api_key:
             raise ValueError("Anthropic API key is required")
         self.client = Anthropic(api_key=options.api_key)
-        self.model_id = options.model_id  # Ensure default value is assigned here
+        self.model_id = options.model_id or ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET
 
         # Default inference configuration
         default_max_tokens = 1000
         self.inference_config = {
-            'max_tokens': options.inference_config.get('max_tokens', default_max_tokens),
-            'temperature': options.inference_config.get('temperature', 0.0),
-            'top_p': options.inference_config.get('top_p', 0.9),
-            'stop_sequences': options.inference_config.get('stop_sequences', []),
+            'max_tokens': options.inference_config.get('max_tokens', default_max_tokens) or default_max_tokens,
+            'temperature': options.inference_config.get('temperature', 0.0) or 0.0,
+            'top_p': options.inference_config.get('top_p', 0.9) or 0.9,
+            'stop_sequences': options.inference_config.get('stop_sequences', []) or [],
         }
 
         # Add your system prompt here
