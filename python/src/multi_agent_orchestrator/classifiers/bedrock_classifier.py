@@ -28,10 +28,10 @@ class BedrockClassifier(Classifier):
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
         self.system_prompt: str = "You are an AI assistant."  # Initialize system prompt without initial value
         self.inference_config: Dict[str, Any] = {
-            'max_tokens': options.inference_config.get('max_tokens', 1000),
+            'maxTokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'top_p': options.inference_config.get('top_p', 0.9),
-            'stop_sequences': options.inference_config.get('stop_sequences', [])
+            'topP': options.inference_config.get('top_p', 0.9),
+            'stopSequences': options.inference_config.get('stop_sequences', [])
         }
         self.tools: List[Dict] = [
             {
@@ -73,13 +73,22 @@ class BedrockClassifier(Classifier):
         try:
             converse_cmd: Dict[str, Any] = {
                 "modelId": self.model_id,
-                "content": [user_message.__dict__],
+                "messages": [user_message.__dict__],
                 "system": self.system_prompt,
-                "maxTokens": self.inference_config['max_tokens'],
-                "temperature": self.inference_config['temperature'],
-                "topP": self.inference_config['top_p'],
-                "stopSequences": self.inference_config['stop_sequences'],
-                "tools": self.tools
+                "toolConfig": {
+                    "tools": self.tools,
+                    "toolChoice": {
+                        "tool": {
+                            "name": "analyzePrompt",
+                        },
+                    },
+                },
+                "inferenceConfig": {
+                    "maxTokens": self.inference_config['maxTokens'],
+                    "temperature": self.inference_config['temperature'],
+                    "topP": self.inference_config['topP'],
+                    "stopSequences": self.inference_config['stopSequences'],
+                }
             }
 
             response = self.client.converse(**converse_cmd)
