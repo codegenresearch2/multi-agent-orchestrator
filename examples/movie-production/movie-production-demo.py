@@ -4,11 +4,11 @@ import uuid
 import asyncio
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (
-    AnthropicAgent, AnthropicAgentOptions, AgentResponse
+    BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse
 )
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
-from supervisor import SupervisorMode, SupervisorModeOptions
+from supervisor import SupervisorAgent, SupervisorAgentOptions
 
 # Set up the Streamlit app
 st.title("AI Movie Production Demo 🎬")
@@ -30,7 +30,7 @@ orchestrator = MultiAgentOrchestrator(options=OrchestratorConfig(
 ))
 
 # Define agents
-script_writer_agent = AnthropicAgent(AnthropicAgentOptions(
+script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="ScriptWriterAgent",
     description="""\
@@ -43,7 +43,19 @@ Your tasks consist of:
 3. Ensure the script aligns with the specified genre and target audience
 """))
 
-casting_director_agent = AnthropicAgent(AnthropicAgentOptions(
+search_web_tool = {
+    "name": "search_web",
+    "description": "Search Web for information",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "The search query"
+        }
+    },
+    "required": ["query"]
+}
+
+casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="CastingDirectorAgent",
     description="""\
@@ -58,14 +70,14 @@ Your tasks consist of:
 5. Provide a final response with all the actors you suggest for the main roles
 """,
     tool_config={
-        'tool': [],
-        'toolMaxRecursions': 20,
-        'useToolHandler': None
+        "tools": [search_web_tool],
+        "toolMaxRecursions": 20,
+        "useToolHandler": None
     },
     save_chat=False
 ))
 
-movie_producer_supervisor = AnthropicAgent(AnthropicAgentOptions(
+movie_producer_supervisor = SupervisorAgent(SupervisorAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
     description="""
@@ -80,21 +92,31 @@ Your tasks consist of:
 """,
 ))
 
-supervisor = SupervisorMode(SupervisorModeOptions(
-    supervisor=movie_producer_supervisor,
-    team=[script_writer_agent, casting_director_agent],
-    trace=True
-))
-
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
-    classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
+    classifier_result = ClassifierResult(selected_agent=movie_producer_supervisor, confidence=1.0)
     response: AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
+    # Print metadata
+    print("\nMetadata:")
+    print(f"Selected Agent: {response.metadata.agent_name}")
     if isinstance(response, AgentResponse) and response.streaming is False:
+        # Handle regular response
         if isinstance(response.output, str):
-            return response.output
+            print(response.output)
         elif isinstance(response.output, ConversationMessage):
-            return response.output.content[0].get('text')
+            print(response.output.content[0].get('text'))
+
+# Initialize the orchestrator with some options
+orchestrator = MultiAgentOrchestrator(options=OrchestratorConfig(
+    LOG_AGENT_CHAT=True,
+    LOG_CLASSIFIER_CHAT=True,
+    LOG_CLASSIFIER_RAW_OUTPUT=True,
+    LOG_CLASSIFIER_OUTPUT=True,
+    LOG_EXECUTION_TIMES=True,
+    MAX_RETRIES=3,
+    USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED=True,
+    MAX_MESSAGE_PAIRS_PER_AGENT=10,
+))
 
 USER_ID = str(uuid.uuid4())
 SESSION_ID = str(uuid.uuid4())
