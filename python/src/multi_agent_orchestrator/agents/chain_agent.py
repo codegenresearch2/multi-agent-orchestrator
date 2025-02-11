@@ -7,12 +7,14 @@ class ChainAgentOptions(AgentOptions):
     def __init__(self, agents: List[Agent], default_output: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.agents = agents
-        self.default_output = default_output if default_output is not None else "No output generated from the chain."
+        self.default_output = default_output or "No output generated from the chain."
 
 class ChainAgent(Agent):
     def __init__(self, options: ChainAgentOptions):
         super().__init__(options)
         self.agents = options.agents
+        if not self.agents:
+            raise ValueError("ChainAgent requires at least one agent in the chain.")
         self.default_output = options.default_output
 
     async def process_request(
@@ -57,7 +59,7 @@ class ChainAgent(Agent):
                     return self.create_default_response()
 
             except Exception as error:
-                Logger.logger.error(f"Error processing request with agent {agent.name}: {error}")
+                Logger.logger.error(f"Error processing request with agent {agent.name}: {str(error)}")
                 return self.create_default_response()
 
         return final_response
