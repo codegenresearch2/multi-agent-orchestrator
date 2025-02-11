@@ -24,16 +24,16 @@ class BedrockLLMAgentOptions(AgentOptions):
 class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
-        self.client = boto3.client('bedrock-runtime', region_name=options.region) if options.region else boto3.client('bedrock-runtime')
+        self.client = boto3.client('bedrock-runtime', region_name=options.region or 'us-west-2')
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
-        self.streaming: bool = options.streaming
-        self.inference_config: Dict[str, Any] = options.inference_config or {
+        self.streaming: bool = options.streaming or False
+        self.inference_config: Dict[str, Any] = {
             'maxTokens': 1000,
             'temperature': 0.0,
             'topP': 0.9,
             'stopSequences': []
-        }
-        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config
+        } | (options.inference_config or {})
+        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config or {}
         self.retriever: Optional[Retriever] = options.retriever
         self.tool_config: Optional[Dict[str, Any]] = options.tool_config
         self.prompt_template: str = f"""You are a {self.name}.
@@ -92,12 +92,7 @@ class BedrockLLMAgent(Agent):
             'modelId': self.model_id,
             'messages': conversation_to_dict(conversation),
             'system': [{'text': system_prompt}],
-            'inferenceConfig': {
-                'maxTokens': self.inference_config.get('maxTokens'),
-                'temperature': self.inference_config.get('temperature'),
-                'topP': self.inference_config.get('topP'),
-                'stopSequences': self.inference_config.get('stopSequences'),
-            }
+            'inferenceConfig': self.inference_config
         }
 
         if self.guardrail_config:
@@ -105,26 +100,6 @@ class BedrockLLMAgent(Agent):
 
         if self.tool_config:
             converse_cmd["toolConfig"] = {'tools': self.tool_config["tool"]}
-
-        if self.tool_config:
-            continue_with_tools = True
-            final_message: ConversationMessage = {'role': ParticipantRole.USER.value, 'content': []}
-            max_recursions = self.tool_config.get('toolMaxRecursions', self.default_max_recursions)
-
-            while continue_with_tools and max_recursions > 0:
-                bedrock_response = await self.handle_single_response(converse_cmd)
-                conversation.append(bedrock_response)
-
-                if any('toolUse' in content for content in bedrock_response.content):
-                    await self.tool_config['useToolHandler'](bedrock_response, conversation)
-                else:
-                    continue_with_tools = False
-                    final_message = bedrock_response
-
-                max_recursions -= 1
-                converse_cmd['messages'] = conversation_to_dict(conversation)
-
-            return final_message
 
         if self.streaming:
             return await self.handle_streaming_response(converse_cmd)
