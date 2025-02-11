@@ -20,6 +20,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
+    extra_tools: list[Tool] = field(default_factory=list)
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -34,7 +35,7 @@ class SupervisorAgent(Agent):
     Attributes:
         supervisor_tools (list[Tool]): List of tools available to the supervisor agent.
         team (list[Agent]): List of agents in the environment.
-        supervisor_type (str): Type of supervisor agent (BEDROCK or ANTHROPIC).
+        supervisor_type (SupervisorType): Type of supervisor agent (BEDROCK or ANTHROPIC).
         user_id (str): User ID.
         session_id (str): Session ID.
         storage (ChatStorage): Chat storage for storing conversation history.
@@ -90,10 +91,11 @@ class SupervisorAgent(Agent):
         self.supervisor: Union[BedrockLLMAgent, AnthropicAgent] = options.supervisor
 
         self.team = options.team
-        self.supervisor_type = options.supervisor.type
+        self.supervisor_type = SupervisorType(options.supervisor.type)
         if not self.supervisor.tool_config:
+            all_tools = self.supervisor_tools + options.extra_tools
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK else tool.to_claude_format() for tool in all_tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
@@ -227,7 +229,7 @@ When communicating with other agents, including the User, please follow these gu
             tool_result = ToolResult(tool_id, result)
 
             # Format according to platform
-            formatted_result = tool_result.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool_result.to_anthropic_format()
+            formatted_result = tool_result.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK else tool_result.to_anthropic_format()
 
             tool_results.append(formatted_result)
 
