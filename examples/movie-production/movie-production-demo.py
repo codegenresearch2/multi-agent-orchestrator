@@ -7,12 +7,12 @@ from search_web import tool_handler
 from tool import Tool, ToolResult
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (
-    AnthropicAgent, AnthropicAgentOptions,
+    BedrockLLMAgent, BedrockLLMAgentOptions,
     AgentResponse
 )
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
-from supervisor import SupervisorMode, SupervisorModeOptions
+from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
 
 # Set up the Streamlit app
 st.title("AI Movie Production Demo 🎬")
@@ -31,8 +31,7 @@ search_web_tool = Tool(name='search_web',
                           },
                           required=['query'])
 
-script_writer_agent = AnthropicAgent(AnthropicAgentOptions(
-    api_key=os.getenv('ANTHROPIC_API_KEY', None),
+script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     name="ScriptWriterAgent",
     description="""\
 You are an expert screenplay writer. Given a movie idea and genre,
@@ -42,10 +41,11 @@ Your tasks consist of:
 1. Write a script outline with 3-5 main characters and key plot points
 2. Outline the three-act structure and suggest 2-3 twists.
 3. Ensure the script aligns with the specified genre and target audience
-"""))
+""",
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+))
 
-casting_director_agent = AnthropicAgent(AnthropicAgentOptions(
-    api_key=os.getenv('ANTHROPIC_API_KEY', None),
+casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     name="CastingDirectorAgent",
     description="""\
 You are a talented casting director. Given a script outline and character descriptions,\
@@ -58,17 +58,16 @@ Your tasks consist of:
 4. Consider diversity and representation in your casting choices.
 5. Provide a final response with all the actors you suggest for the main roles
 """,
-
-tool_config={
-    'tool': [search_web_tool.to_claude_format()],
-    'toolMaxRecursions': 20,
-    'useToolHandler': tool_handler
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    tool_config={
+        'tool': [search_web_tool.to_bedrock_format()],
+        'toolMaxRecursions': 20,
+        'useToolHandler': tool_handler
     },
     save_chat=False
 ))
 
-movie_producer_supervisor = AnthropicAgent(AnthropicAgentOptions(
-    api_key=os.getenv('ANTHROPIC_API_KEY', None),
+movie_producer_supervisor = SupervisorAgent(SupervisorAgentOptions(
     name='MovieProducerAgent',
     description="""
 Experienced movie producer overseeing script and casting.
@@ -82,8 +81,8 @@ Your tasks consist of:
 """,
 ))
 
-supervisor = SupervisorMode(SupervisorModeOptions(
-    supervisor=movie_producer_supervisor,
+supervisor = SupervisorAgent(SupervisorAgentOptions(
+    name='MovieProducerAgent',
     team=[script_writer_agent, casting_director_agent],
     trace=True
 ))
