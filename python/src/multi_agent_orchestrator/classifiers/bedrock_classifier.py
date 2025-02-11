@@ -26,12 +26,12 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt = ""  # Add your system prompt here
+        self.system_prompt: str = ""  # Explicitly type the system prompt
         self.inference_config = {
             'maxTokens': options.inference_config.get('maxTokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'topP': options.inference_config.get('top_p', 0.9),
-            'stopSequences': options.inference_config.get('stop_sequences', [])
+            'topP': options.inference_config.get('topP', 0.9),  # Corrected key name
+            'stopSequences': options.inference_config.get('stopSequences', [])
         }
         self.tools = [
             {
