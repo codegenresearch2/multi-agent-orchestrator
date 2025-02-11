@@ -148,6 +148,12 @@ class SupervisorAgent(Agent):
     ]
 
     def __init__(self, options: SupervisorAgentOptions):
+        """
+        Initializes a SupervisorAgent instance.
+
+        Args:
+            options (SupervisorAgentOptions): Options for the supervisor agent.
+        """
         options.name = options.supervisor.name
         options.description = options.supervisor.description
         super().__init__(options)
@@ -225,6 +231,19 @@ class SupervisorAgent(Agent):
             raise RuntimeError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
 
     def send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str:
+        """
+        Sends a message to a specific agent.
+
+        Args:
+            agent (Agent): The agent to send the message to.
+            content (str): The content of the message.
+            user_id (str): The user ID.
+            session_id (str): The session ID.
+            additionalParameters (dict): Additional parameters for the message.
+
+        Returns:
+            str: The response from the agent.
+        """
         Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}") if self.trace else None
         agent_chat_history = asyncio.run(self.storage.fetch_chat(user_id, session_id, agent.id)) if agent.save_chat else []
         response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters))
@@ -234,6 +253,15 @@ class SupervisorAgent(Agent):
         return f"{agent.name}: {response.content[0].get('text')}"
 
     async def send_messages(self, messages: list[dict[str, str]]) -> str:
+        """
+        Sends messages to multiple agents in parallel.
+
+        Args:
+            messages (list[dict[str, str]]): List of messages to send to different agents.
+
+        Returns:
+            str: The concatenated response from all agents.
+        """
         tasks = []
         for agent in self.team:
             for message in messages:
@@ -255,9 +283,25 @@ class SupervisorAgent(Agent):
         return ''
 
     async def get_current_date(self) -> str:
+        """
+        Gets the current date in US format.
+
+        Returns:
+            str: The current date.
+        """
         return datetime.now(timezone.utc).strftime('%m/%d/%Y')
 
     async def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]]) -> Any:
+        """
+        Handles the response from a tool.
+
+        Args:
+            response (Any): The response from the tool.
+            conversation (list[dict[str, Any]]): The conversation history.
+
+        Returns:
+            Any: The formatted response.
+        """
         if not response.content:
             raise ValueError("No content blocks in response")
 
@@ -282,6 +326,16 @@ class SupervisorAgent(Agent):
                 return {'role': ParticipantRole.USER.value, 'content': tool_results}
 
     async def _process_tool(self, tool_name: str, input_data: dict) -> Any:
+        """
+        Processes a tool based on its name.
+
+        Args:
+            tool_name (str): The name of the tool.
+            input_data (dict): The input data for the tool.
+
+        Returns:
+            Any: The result of the tool.
+        """
         if tool_name == "send_messages":
             return await self.send_messages(input_data.get('messages'))
         elif tool_name == "get_current_date":
@@ -299,6 +353,19 @@ class SupervisorAgent(Agent):
         chat_history: list[ConversationMessage],
         additional_params: Optional[dict[str, str]] = None
     ) -> Union[ConversationMessage, AsyncIterable[Any]]:
+        """
+        Processes a user request.
+
+        Args:
+            input_text (str): The user's input text.
+            user_id (str): The user ID.
+            session_id (str): The session ID.
+            chat_history (list[ConversationMessage]): The chat history.
+            additional_params (Optional[dict[str, str]]): Additional parameters.
+
+        Returns:
+            Union[ConversationMessage, AsyncIterable[Any]]: The response from the supervisor.
+        """
         self.user_id = user_id
         self.session_id = session_id
         agents_history = await self.storage.fetch_all_chats(user_id, session_id)
@@ -313,6 +380,15 @@ class SupervisorAgent(Agent):
         return response
 
     def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
+        """
+        Extracts the tool use block from the response.
+
+        Args:
+            block (dict): The response block.
+
+        Returns:
+            Union[dict, None]: The tool use block or None if not found.
+        """
         if self.supervisor_type == SupervisorType.BEDROCK.value and "toolUse" in block:
             return block["toolUse"]
         elif self.supervisor_type == SupervisorType.ANTHROPIC.value and block.type == "tool_use":
