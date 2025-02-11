@@ -26,12 +26,12 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION', 'us-east-1')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt = "You are an AI assistant."  # Explicitly initialized
+        self.system_prompt: str = "You are an AI assistant."  # Explicitly initialized with type hint
         self.inference_config = {
-            'max_tokens': options.inference_config.get('max_tokens', 1000),
+            'maxTokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'top_p': options.inference_config.get('top_p', 0.9),
-            'stop_sequences': options.inference_config.get('stop_sequences', [])
+            'topP': options.inference_config.get('top_p', 0.9),
+            'stopSequences': options.inference_config.get('stop_sequences', [])
         }
         self.tools = [
             {
@@ -68,18 +68,18 @@ class BedrockClassifier(Classifier):
                               chat_history: List[ConversationMessage]) -> ClassifierResult:
         user_message = ConversationMessage(
             role=ParticipantRole.USER,
-            content=input_text
+            content=[{"text": input_text}]
         )
 
         converse_cmd = {
-            "model": self.model_id,
+            "modelId": self.model_id,
             "messages": [user_message.__dict__],
             "system": self.system_prompt,
             "tools": self.tools,
-            "max_tokens": self.inference_config['max_tokens'],
+            "maxTokens": self.inference_config['maxTokens'],
             "temperature": self.inference_config['temperature'],
-            "top_p": self.inference_config['top_p'],
-            "stop_sequences": self.inference_config['stop_sequences'],
+            "topP": self.inference_config['topP'],
+            "stopSequences": self.inference_config['stopSequences'],
         }
 
         try:
