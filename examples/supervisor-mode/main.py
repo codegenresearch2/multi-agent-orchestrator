@@ -10,7 +10,7 @@ from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
 from multi_agent_orchestrator.utils import Logger, Tool
-from datetime import datetime
+from datetime import datetime, timezone
 import sys, asyncio, uuid
 import os
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
@@ -78,18 +78,10 @@ supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
 ))
 
 def get_current_date():
-    return datetime.now().strftime('%Y-%m-%d')
-
-supervisor = SupervisorAgent(
-    SupervisorAgentOptions(
-        supervisor=supervisor_agent,
-        team=[airlines_agent, travel_agent, tech_agent, sales_agent, health_agent, claim_agent, weather_agent],
-        storage=DynamoDbChatStorage(
-            table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
-            region='us-east-1'
-        ),
-        trace=True
-    ))
+    """
+    Returns the current date in the format 'YYYY-MM-DD'.
+    """
+    return datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
     try:
@@ -123,8 +115,8 @@ if __name__ == "__main__":
     ),
     storage=DynamoDbChatStorage(
         table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
-        region='us-east-1')
-    )
+        region='us-east-1'
+    ))
 
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
