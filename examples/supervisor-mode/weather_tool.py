@@ -79,13 +79,6 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
                             "content": [{"json": {"error": str(e)}}],
                         }
                     })
-                except Exception as e:
-                    tool_results.append({
-                        "toolResult": {
-                            "toolUseId": tool_use_block["toolUseId"],
-                            "content": [{"json": {"error": str(e)}}],
-                        }
-                    })
 
     # Embed the tool results in a new user message
     message = ConversationMessage(
