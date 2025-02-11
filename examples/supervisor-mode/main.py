@@ -75,6 +75,9 @@ airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
                                               bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
 
 async def get_current_date():
+    """
+    Returns the current date in the format 'MM/DD/YYYY'.
+    """
     current_date = datetime.now(timezone.utc).strftime('%m/%d/%Y')
     logger.info(f"Current date: {current_date}")
     return current_date
@@ -82,9 +85,16 @@ async def get_current_date():
 # Adding get_current_date as a tool
 extra_tools = [get_current_date]
 
-supervisor_agent = SupervisorAgent(
+supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
+    api_key=os.getenv('ANTHROPIC_API_KEY', None),
+    name="SupervisorAgent",
+    description="You are a supervisor agent. You are responsible for managing the flow of the conversation. You are only allowed to manage the flow of the conversation. You are not allowed to answer questions about anything else.",
+    model_id="claude-3-5-sonnet-latest"
+))
+
+supervisor = SupervisorAgent(
     SupervisorAgentOptions(
-        supervisor=None,  # Assuming SupervisorAgentOptions should include a supervisor instance
+        supervisor=supervisor_agent,
         team=[airlines_agent, travel_agent, tech_agent, sales_agent, health_agent, claim_agent, weather_agent],
         extra_tools=extra_tools,  # Adding extra_tools parameter as per gold code
         storage=DynamoDbChatStorage(
@@ -95,7 +105,7 @@ supervisor_agent = SupervisorAgent(
     ))
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
-    classifier_result = ClassifierResult(selected_agent=supervisor_agent, confidence=1.0)
+    classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
 
     response: AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
