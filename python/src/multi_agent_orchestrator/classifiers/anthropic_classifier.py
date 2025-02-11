@@ -5,6 +5,10 @@ from multi_agent_orchestrator.utils.helpers import is_tool_input
 from multi_agent_orchestrator.utils import Logger
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.classifiers import Classifier, ClassifierResult
+import logging
+
+# Set the logging level for the "httpx" logger to WARNING
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20240620"
 
@@ -34,7 +38,7 @@ class AnthropicClassifier(Classifier):
             'stop_sequences': options.inference_config.get('stop_sequences', []),
         }
 
-        self.tools = [
+        self.tools: List[Dict] = [
             {
                 'name': 'analyzePrompt',
                 'description': 'Analyze the user input and provide structured output',
