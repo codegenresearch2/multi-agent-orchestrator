@@ -24,12 +24,13 @@ class MultiAgentOrchestrator:
     logger: Logger = None
 
     def __post_init__(self):
-        if self.options is None:
-            self.options = OrchestratorConfig()
-        elif isinstance(self.options, dict):
-            valid_keys = {f.name for f in fields(OrchestratorConfig)}
-            self.options = {k: v for k, v in self.options.items() if k in valid_keys}
-            self.options = OrchestratorConfig(**self.options)
+        if not isinstance(self.options, OrchestratorConfig):
+            if isinstance(self.options, dict):
+                valid_keys = {f.name for f in fields(OrchestratorConfig)}
+                self.options = {k: v for k, v in self.options.items() if k in valid_keys}
+                self.options = OrchestratorConfig(**self.options)
+            else:
+                raise ValueError("options must be a dictionary or an instance of OrchestratorConfig")
 
         self.logger = Logger(self.config, self.logger)
         self.agents: Dict[str, Agent] = {}
@@ -98,7 +99,7 @@ class MultiAgentOrchestrator:
                 self.print_intent(user_input, classifier_result)
 
         except Exception as error:
-            self.logger.error(f"Error during intent classification: {error}")
+            self.logger.error(f"Error during intent classification: {str(error)}")
             return AgentResponse(
                 metadata=self.create_metadata(None, user_input, user_id, session_id, additional_params),
                 output=self.config.CLASSIFICATION_ERROR_MESSAGE,
@@ -144,7 +145,7 @@ class MultiAgentOrchestrator:
             )
 
         except Exception as error:
-            self.logger.error(f"Error during agent dispatch or processing: {error}")
+            self.logger.error(f"Error during agent dispatch or processing: {str(error)}")
             return AgentResponse(
                 metadata=self.create_metadata(classifier_result, user_input, user_id, session_id, additional_params),
                 output=self.config.GENERAL_ROUTING_ERROR_MSG_MESSAGE,
