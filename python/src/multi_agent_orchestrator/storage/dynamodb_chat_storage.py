@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Union, Optional
 import time
 import boto3
 from multi_agent_orchestrator.storage import ChatStorage
@@ -38,7 +38,7 @@ class DynamoDbChatStorage(ChatStorage):
 
         trimmed_conversation = self.trim_conversation(existing_conversation, max_history_size)
 
-        item = {
+        item: Dict[str, Union[str, List[TimestampedMessage], int]] = {
             'PK': user_id,
             'SK': key,
             'conversation': conversation_to_dict(trimmed_conversation)
@@ -59,7 +59,7 @@ class DynamoDbChatStorage(ChatStorage):
         key = self._generate_key(user_id, session_id, agent_id)
         try:
             response = self.table.get_item(Key={'PK': user_id, 'SK': key})
-            stored_messages = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
+            stored_messages: List[TimestampedMessage] = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
             return self._remove_timestamps(stored_messages)
         except Exception as error:
             Logger.error(f"Error getting conversation from DynamoDB: {error}")
@@ -69,7 +69,7 @@ class DynamoDbChatStorage(ChatStorage):
         key = self._generate_key(user_id, session_id, agent_id)
         try:
             response = self.table.get_item(Key={'PK': user_id, 'SK': key})
-            stored_messages = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
+            stored_messages: List[TimestampedMessage] = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
             return stored_messages
         except Exception as error:
             Logger.error(f"Error getting conversation from DynamoDB: {error}")
