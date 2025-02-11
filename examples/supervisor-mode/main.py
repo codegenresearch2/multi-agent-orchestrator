@@ -9,7 +9,7 @@ from multi_agent_orchestrator.agents import (
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
-from multi_agent_orchestrator.utils import Logger
+from multi_agent_orchestrator.utils import Logger, Tool
 from datetime import datetime, timezone
 import sys, asyncio, uuid
 import os
@@ -83,6 +83,7 @@ supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
     model_id="claude-3-5-sonnet-latest"
 ))
 
+# Tool for getting the current date
 async def get_current_date():
     """
     Returns the current date in the format 'YYYY-MM-DD'.
@@ -90,6 +91,12 @@ async def get_current_date():
     current_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     Logger.info(f"Current date: {current_date}")
     return current_date
+
+get_current_date_tool = Tool(
+    name="GetCurrentDate",
+    description="Returns the current date in the format 'YYYY-MM-DD'.",
+    func=get_current_date
+)
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
     try:
@@ -132,7 +139,8 @@ if __name__ == "__main__":
     supervisor = SupervisorAgent(
         SupervisorAgentOptions(
             supervisor=supervisor_agent,
-            team=[airlines_agent, travel_agent, tech_agent, sales_agent, health_agent, claim_agent],
+            team=[airlines_agent, travel_agent, tech_agent, sales_agent, health_agent, claim_agent, weather_agent],
+            tools=[get_current_date_tool],
             storage=DynamoDbChatStorage(
                 table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
                 region='us-east-1'
