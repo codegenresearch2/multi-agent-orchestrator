@@ -19,9 +19,9 @@ class AnthropicClassifierOptions:
         model_id (Optional[str]): The ID of the model to use. Defaults to CLAUDE_3_5_SONNET.
         inference_config (Optional[Dict[str, Any]]): Configuration for the inference.
     """
-    def __init__(self, api_key: str, model_id: Optional[str] = None, inference_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, api_key: str, model_id: Optional[str] = ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET, inference_config: Optional[Dict[str, Any]] = None):
         self.api_key = api_key
-        self.model_id = model_id or ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET
+        self.model_id = model_id
         self.inference_config = inference_config if inference_config is not None else {}
 
 class AnthropicClassifier(Classifier):
