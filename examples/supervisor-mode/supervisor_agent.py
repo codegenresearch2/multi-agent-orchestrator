@@ -7,8 +7,7 @@ from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.utils import Logger
 from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
-from tool import Tool, ToolResult
-from datetime import datetime, timezone
+from tool import Tool, ToolResult, Tools
 
 class AgentProviderType(Enum):
     BEDROCK = "BEDROCK"
@@ -20,7 +19,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
-    extra_tools: Optional[Union[list[Tool], Tool]] = None
+    extra_tools: Optional[Union[Tools, list[Tool]]] = None
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -33,7 +32,7 @@ class SupervisorAgent(Agent):
     This class represents a supervisor agent that interacts with other agents in an environment. It inherits from the Agent class.
 
     Attributes:
-        supervisor_tools (list[Tool]): List of tools available to the supervisor agent.
+        supervisor_tools (Tools): List of tools available to the supervisor agent.
         team (list[Agent]): List of agents in the environment.
         supervisor_type (str): Type of supervisor agent (BEDROCK or ANTHROPIC).
         user_id (str): User ID.
@@ -58,7 +57,7 @@ class SupervisorAgent(Agent):
         self.supervisor = options.supervisor
         self.team = options.team
         self.supervisor_type = AgentProviderType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else AgentProviderType.ANTHROPIC.value
-        self.supervisor_tools = options.extra_tools if options.extra_tools else []
+        self.supervisor_tools = options.extra_tools if isinstance(options.extra_tools, Tools) else Tools(options.extra_tools)
 
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
