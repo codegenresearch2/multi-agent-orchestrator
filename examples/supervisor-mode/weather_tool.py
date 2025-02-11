@@ -56,22 +56,33 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
         raise ValueError("No content blocks in response")
 
     for content_block in response_content_blocks:
-        if "text" in content_block:
-            # Handle text content if needed
-            pass
-
         if "toolUse" in content_block:
             tool_use_block = content_block["toolUse"]
             tool_use_name = tool_use_block.get("name")
 
             if tool_use_name == "Weather_Tool":
-                tool_response = await fetch_weather_data(tool_use_block["input"])
-                tool_results.append({
-                    "toolResult": {
-                        "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": {"result": tool_response}}],
-                    }
-                })
+                try:
+                    tool_response = await fetch_weather_data(tool_use_block["input"])
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": tool_response}],
+                        }
+                    })
+                except RequestException as e:
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": {"error": str(e), "message": "An error occurred while fetching weather data."}}],
+                        }
+                    })
+                except Exception as e:
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": {"error": str(e), "message": "An unexpected error occurred."}}],
+                        }
+                    })
 
     # Embed the tool results in a new user message
     message = ConversationMessage(
