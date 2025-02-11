@@ -22,7 +22,6 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
-    extra_tools: Union[list[Tool], Tool] = field(default_factory=list)
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -38,7 +37,7 @@ class SupervisorAgent(Agent):
     Attributes:
         supervisor_tools (list[Tool]): List of tools available to the supervisor agent.
         team (list[Agent]): List of agents in the environment.
-        supervisor_type (SupervisorType): Type of supervisor agent (BEDROCK or ANTHROPIC).
+        supervisor_type (str): Type of supervisor agent (BEDROCK or ANTHROPIC).
         user_id (str): User ID.
         session_id (str): Session ID.
         storage (ChatStorage): Chat storage for storing conversation history.
@@ -46,7 +45,7 @@ class SupervisorAgent(Agent):
 
     Methods:
         __init__(self, options: SupervisorAgentOptions): Initializes a SupervisorAgent instance.
-        send_message(self, agent: Agent, content: str, user_id: str, session_id: str) -> str: Sends a message to an agent.
+        send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str: Sends a message to an agent.
         send_messages(self, messages: list[dict[str, str]]) -> str: Sends messages to multiple agents in parallel.
         get_current_date(self) -> str: Gets the current date.
         supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]]) -> Any: Handles the response from a tool.
@@ -94,11 +93,11 @@ class SupervisorAgent(Agent):
         self.supervisor: Union[BedrockLLMAgent, AnthropicAgent] = options.supervisor
 
         self.team = options.team
-        self.supervisor_type = SupervisorType(options.supervisor.type)
+        self.supervisor_type = options.supervisor.type
         if not self.supervisor.tool_config:
-            tools = self.supervisor_tools + (options.extra_tools if isinstance(options.extra_tools, list) else [options.extra_tools])
+            tools = self.supervisor_tools + options.extra_tools
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK else tool.to_claude_format() for tool in tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
@@ -168,10 +167,10 @@ When communicating with other agents, including the User, please follow these gu
             Logger.debug(f"Supervisor {self.supervisor.__class__} is not supported")
             raise RuntimeError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
 
-    def send_message(self, agent: Agent, content: str, user_id: str, session_id: str) -> 'str':
+    def send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> 'str':
         Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}") if self.trace else None
         agent_chat_history = asyncio.run(self.storage.fetch_chat(user_id, session_id, agent.id)) if agent.save_chat else []
-        response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history))
+        response = asyncio.run(agent.process_request(content, user_id, session_id, agent_chat_history, additionalParameters))
         asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.USER.value, content=[{'text': content}]))) if agent.save_chat else None
         asyncio.run(self.storage.save_chat_message(user_id, session_id, agent.id, ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': f"{response.content[0].get('text', '')}"}]))) if agent.save_chat else None
         Logger.info(f"\n<<<<<===Supervisor received this response from {agent.name}:\n{response.content[0].get('text', '')[:500]}...") if self.trace else None
@@ -192,7 +191,8 @@ When communicating with other agents, including the User, please follow these gu
                             agent,
                             message.get('content'),
                             self.user_id,
-                            self.session_id
+                            self.session_id,
+                            {}
                         )
                     )
                     tasks.append(task)
@@ -231,7 +231,7 @@ When communicating with other agents, including the User, please follow these gu
             tool_result = ToolResult(tool_id, result)
 
             # Format according to platform
-            formatted_result = tool_result.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK else tool_result.to_anthropic_format()
+            formatted_result = tool_result.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool_result.to_anthropic_format()
 
             tool_results.append(formatted_result)
 
