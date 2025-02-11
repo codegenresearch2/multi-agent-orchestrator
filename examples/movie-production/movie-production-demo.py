@@ -29,6 +29,7 @@ search_web_tool = Tool(name='search_web',
                           required=['query'])
 
 script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
     name="ScriptWriterAgent",
     description="""
 You are an expert screenplay writer. Given a movie idea and genre,
@@ -38,11 +39,11 @@ Your tasks consist of:
 1. Write a script outline with 3-5 main characters and key plot points
 2. Outline the three-act structure and suggest 2-3 twists.
 3. Ensure the script aligns with the specified genre and target audience
-""",
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+"""
 ))
 
 casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
     name="CastingDirectorAgent",
     description="""
 You are a talented casting director. Given a script outline and character descriptions,
@@ -54,17 +55,11 @@ Your tasks consist of:
 3. Provide a brief explanation for each casting suggestion.
 4. Consider diversity and representation in your casting choices.
 5. Provide a final response with all the actors you suggest for the main roles
-""",
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-    tool_config={
-        'tool': [search_web_tool.to_bedrock_format()],
-        'toolMaxRecursions': 20,
-        'useToolHandler': tool_handler
-    },
-    save_chat=False
+"""
 ))
 
 movie_producer_supervisor = BedrockLLMAgent(BedrockLLMAgentOptions(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
     name='MovieProducerAgent',
     description="""
 Experienced movie producer overseeing script and casting.
@@ -75,8 +70,7 @@ Your tasks consist of:
 3. Summarize the script outline and casting suggestions.
 4. Provide a concise movie concept overview.
 5. Make sure to respond with a markdown format without mentioning it.
-""",
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+"""
 ))
 
 supervisor = SupervisorAgent(SupervisorAgentOptions(
