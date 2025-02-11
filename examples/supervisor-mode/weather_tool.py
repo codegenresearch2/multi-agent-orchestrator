@@ -66,21 +66,21 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
                     tool_results.append({
                         "toolResult": {
                             "toolUseId": tool_use_block["toolUseId"],
-                            "content": [{"json": tool_response}],
+                            "content": [tool_response],
                         }
                     })
                 except RequestException as e:
                     tool_results.append({
                         "toolResult": {
                             "toolUseId": tool_use_block["toolUseId"],
-                            "content": [{"json": {"error": str(e), "message": "An error occurred while fetching weather data."}}],
+                            "content": [{"error": str(e)}],
                         }
                     })
                 except Exception as e:
                     tool_results.append({
                         "toolResult": {
                             "toolUseId": tool_use_block["toolUseId"],
-                            "content": [{"json": {"error": str(e), "message": "An unexpected error occurred."}}],
+                            "content": [{"error": str(e)}],
                         }
                     })
 
@@ -103,7 +103,7 @@ async def fetch_weather_data(input_data):
 
     endpoint = "https://api.open-meteo.com/v1/forecast"
     latitude = input_data.get("latitude")
-    longitude = input_data.get("longitude", "")
+    longitude = input_data.get("longitude")
     params = {"latitude": latitude, "longitude": longitude, "current_weather": True}
 
     try:
@@ -112,6 +112,6 @@ async def fetch_weather_data(input_data):
         response.raise_for_status()
         return weather_data
     except RequestException as e:
-        return {"error": str(e), "message": "An error occurred while fetching weather data."}
+        return {"error": str(e)}
     except Exception as e:
-        return {"error": str(e), "message": "An unexpected error occurred."}
+        return {"error": str(e)}
