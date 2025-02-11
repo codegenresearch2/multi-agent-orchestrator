@@ -21,7 +21,7 @@ class BedrockLLMAgentOptions(AgentOptions):
 class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
-        self.client = boto3.client('bedrock-runtime', region_name=options.region)
+        self.client = boto3.client('bedrock-runtime', region_name=options.region or 'us-west-2')
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.streaming: bool = options.streaming
         self.inference_config: Dict[str, Any] = options.inference_config or {
@@ -102,7 +102,7 @@ class BedrockLLMAgent(Agent):
             if 'output' not in response or 'message' not in response['output']:
                 raise ValueError("No valid response received from Bedrock model")
             content = response['output']['message']['content']
-            if not isinstance(content, list) or not content:
+            if not isinstance(content, list) or not all(isinstance(item, dict) and 'text' in item for item in content):
                 raise ValueError("Invalid content structure in response")
             return ConversationMessage(
                 role=response['output']['message']['role'],
