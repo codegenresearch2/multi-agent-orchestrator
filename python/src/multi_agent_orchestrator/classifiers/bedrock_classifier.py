@@ -26,14 +26,14 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt = "You are an AI assistant."  # Initialize system prompt without initial value
-        self.inference_config = {
+        self.system_prompt: str = "You are an AI assistant."  # Initialize system prompt without initial value
+        self.inference_config: Dict[str, Any] = {
             'max_tokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
             'top_p': options.inference_config.get('top_p', 0.9),
             'stop_sequences': options.inference_config.get('stop_sequences', [])
         }
-        self.tools = [
+        self.tools: List[Dict] = [
             {
                 'toolSpec': {
                     'name': 'analyzePrompt',
@@ -65,13 +65,13 @@ class BedrockClassifier(Classifier):
     async def process_request(self,
                               input_text: str,
                               chat_history: List[ConversationMessage]) -> ClassifierResult:
-        user_message = ConversationMessage(
-            role=ParticipantRole.USER,
+        user_message: ConversationMessage = ConversationMessage(
+            role=ParticipantRole.USER.value,
             content=[{"text": input_text}]
         )
 
         try:
-            converse_cmd = {
+            converse_cmd: Dict[str, Any] = {
                 "modelId": self.model_id,
                 "content": [user_message.__dict__],
                 "system": self.system_prompt,
@@ -99,7 +99,7 @@ class BedrockClassifier(Classifier):
                         if not is_tool_input(tool_use['input']):
                             raise ValueError("Tool input does not match expected structure")
 
-                        intent_classifier_result = ClassifierResult(
+                        intent_classifier_result: ClassifierResult = ClassifierResult(
                             selected_agent=self.get_agent_by_id(tool_use['input']['selected_agent']),
                             confidence=float(tool_use['input']['confidence'])
                         )
