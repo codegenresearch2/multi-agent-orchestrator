@@ -2,8 +2,6 @@ import requests
 from requests.exceptions import RequestException
 from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
-from multi_agent_orchestrator.utils import Tool, Tools
-import json
 
 # Define the tools for flexibility
 weather_tool_description = [{
@@ -106,9 +104,3 @@ async def fetch_weather_data(input_data):
         return e.response.json()
     except Exception as e:
         return {"error": type(e), "message": str(e)}
-
-# Define the weather tools
-weather_tools: Tools = Tools(tools=[Tool(name="Weather_Tool",
-                            description="Get the current weather for a given location, based on its WGS84 coordinates.",
-                            func=fetch_weather_data
-                            )])
