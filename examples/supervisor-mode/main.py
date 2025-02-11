@@ -9,7 +9,7 @@ from multi_agent_orchestrator.agents import (
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
-from multi_agent_orchestrator.utils import Logger, Tool
+from multi_agent_orchestrator.utils import Logger
 from datetime import datetime, timezone
 import sys, asyncio, uuid
 import os
@@ -18,6 +18,12 @@ from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Standard library imports
+
+# Third-party imports
+
+# Local application imports
 
 tech_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
@@ -158,6 +164,6 @@ Here is the list of available agents:
             Logger.info("Exiting the program. Goodbye!")
             sys.exit()
 
-        # Run the async function
-        if user_input is not None and user_input != '':
+        # Check for empty input
+        if user_input:
             asyncio.run(handle_request(orchestrator, user_input, USER_ID, SESSION_ID))
