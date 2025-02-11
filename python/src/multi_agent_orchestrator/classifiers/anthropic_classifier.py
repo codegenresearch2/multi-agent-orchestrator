@@ -1,8 +1,7 @@
 import os
 from typing import List, Optional, Dict, Any
 from anthropic import Anthropic
-from multi_agent_orchestrator.utils.helpers import is_tool_input
-from multi_agent_orchestrator.utils import Logger
+from multi_agent_orchestrator.utils.logger import Logger
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.classifiers import Classifier, ClassifierResult
 import logging
@@ -19,7 +18,7 @@ class AnthropicClassifierOptions:
                  inference_config: Optional[Dict[str, Any]] = None):
         self.api_key = api_key
         self.model_id = model_id
-        self.inference_config = inference_config if inference_config is not None else {}
+        self.inference_config = inference_config or {}
 
 class AnthropicClassifier(Classifier):
     def __init__(self, options: AnthropicClassifierOptions):
@@ -63,7 +62,7 @@ class AnthropicClassifier(Classifier):
             }
         ]
 
-        self.system_prompt = "You are an AI assistant."
+        self.system_prompt = "You are an AI assistant."  # Add your system prompt here
 
     async def process_request(self,
                               input_text: str,
