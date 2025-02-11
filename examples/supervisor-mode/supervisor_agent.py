@@ -19,7 +19,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
-    extra_tools: Union[Tools, list[Tool]] = field(default_factory=list)
+    extra_tools: Optional[Union[Tools, list[Tool]]] = None
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -50,8 +50,6 @@ class SupervisorAgent(Agent):
         process_request(self, input_text: str, user_id: str, session_id: str, chat_history: list[ConversationMessage], additional_params: Optional[dict[str, str]] = None) -> Union[ConversationMessage, AsyncIterable[Any]]: Processes a user request.
     """
 
-    supervisor_tools: list[Tool] = []
-
     def __init__(self, options: SupervisorAgentOptions):
         options.name = options.supervisor.name
         options.description = options.supervisor.description
@@ -59,13 +57,7 @@ class SupervisorAgent(Agent):
         self.supervisor = options.supervisor
         self.team = options.team
         self.supervisor_type = AgentProviderType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else AgentProviderType.ANTHROPIC.value
-
-        if isinstance(options.extra_tools, Tools):
-            self.supervisor_tools = options.extra_tools.tools + self.supervisor_tools
-        elif isinstance(options.extra_tools, list):
-            self.supervisor_tools = options.extra_tools + self.supervisor_tools
-        else:
-            raise ValueError("extra_tools must be a Tools object or a list of Tool objects")
+        self.supervisor_tools = options.extra_tools.tools if options.extra_tools else []
 
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
