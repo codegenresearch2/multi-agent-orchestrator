@@ -21,15 +21,15 @@ class BedrockLLMAgentOptions(AgentOptions):
 class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
-        self.client = boto3.client('bedrock-runtime') if options.region is None else boto3.client('bedrock-runtime', region_name=options.region)
+        self.client = boto3.client('bedrock-runtime', region_name=options.region)
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.streaming: bool = options.streaming
-        self.inference_config: Dict[str, Any] = options.inference_config or {
+        self.inference_config: Dict[str, Any] = {
             'maxTokens': 1000,
             'temperature': 0.0,
             'topP': 0.9,
             'stopSequences': []
-        }
+        } | (options.inference_config or {})
         self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config or {}
         self.retriever: Optional[Retriever] = options.retriever
         self.tool_config: Optional[Dict[str, Any]] = options.tool_config
