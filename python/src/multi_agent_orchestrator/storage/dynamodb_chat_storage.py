@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Optional
 import time
 import boto3
 from multi_agent_orchestrator.storage import ChatStorage
@@ -38,7 +38,7 @@ class DynamoDbChatStorage(ChatStorage):
 
         trimmed_conversation: List[TimestampedMessage] = self.trim_conversation(existing_conversation, max_history_size)
 
-        item: Dict[str, Union[str, List[TimestampedMessage], int]] = {
+        item: Dict[str, str] = {
             'PK': user_id,
             'SK': key,
             'conversation': conversation_to_dict(trimmed_conversation),
