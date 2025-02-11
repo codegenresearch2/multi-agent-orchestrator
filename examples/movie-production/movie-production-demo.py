@@ -78,7 +78,7 @@ Your tasks consist of:
     }
 ))
 
-# Initialize the supervisor agent
+# Initialize the supervisor agent with the team
 supervisor = SupervisorAgent(SupervisorAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
@@ -92,6 +92,7 @@ Your tasks consist of:
 4. Provide a concise movie concept overview.
 5. Make sure to respond with a markdown format without mentioning it.
 """,
+    team=[script_writer_agent, casting_director_agent]
 ))
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
