@@ -9,7 +9,7 @@ from multi_agent_orchestrator.agents import (
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
-from multi_agent_orchestrator.utils import Logger, Tool
+from multi_agent_orchestrator.utils import Logger
 from datetime import datetime, timezone
 import sys, asyncio, uuid
 import os
@@ -77,7 +77,7 @@ supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
     model_id="claude-3-5-sonnet-latest"
 ))
 
-def get_current_date():
+async def get_current_date():
     """
     Returns the current date in the format 'YYYY-MM-DD'.
     """
@@ -85,18 +85,20 @@ def get_current_date():
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
     try:
+        current_date = await get_current_date()
+        Logger.info(f"Current date: {current_date}")
         classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
         response: AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
         # Print metadata
-        Logger.info("\nMetadata:")
-        Logger.info(f"Selected Agent: {response.metadata.agent_name}")
+        print("\nMetadata:")
+        print(f"Selected Agent: {response.metadata.agent_name}")
         if isinstance(response, AgentResponse) and response.streaming is False:
             # Handle regular response
             if isinstance(response.output, str):
-                Logger.info(response.output)
+                print(response.output)
             elif isinstance(response.output, ConversationMessage):
-                Logger.info(response.output.content[0].get('text'))
+                print(response.output.content[0].get('text'))
     except Exception as e:
         Logger.error(f"An error occurred: {e}")
 
@@ -121,7 +123,7 @@ if __name__ == "__main__":
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
 
-    Logger.info(f"""Welcome to the interactive Multi-Agent system.\n
+    print(f"""Welcome to the interactive Multi-Agent system.\n
 I'm here to assist you with your questions.
 Here is the list of available agents:
 - TechAgent: Anything related to technology
