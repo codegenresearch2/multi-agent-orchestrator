@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, fields, asdict, replace
+from dataclasses import dataclass, fields, replace
 from typing import Dict, Any, AsyncIterable, Optional, Union
 from abc import ABC, abstractmethod
 
@@ -125,7 +125,7 @@ class MultiAgentOrchestrator:
         elif not isinstance(options, Config):
             raise ValueError("options must be a dictionary or a Config instance")
 
-        self.config = options
+        self.config = replace(DEFAULT_CONFIG, **asdict(options))
         self.storage = storage
         self.logger = Logger(self.config, logger)
         self.agents: Dict[str, Agent] = {}
