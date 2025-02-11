@@ -246,6 +246,7 @@ class SupervisorAgent(Agent):
                 }
 
     async def _process_tool(self, tool_name: str, input_data: dict) -> Any:
+        """Process tool use based on tool name."""
         if tool_name == "send_messages":
             return await self.send_messages(input_data.get('messages'))
         elif tool_name == "get_current_date":
