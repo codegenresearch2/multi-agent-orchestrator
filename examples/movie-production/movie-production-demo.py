@@ -6,10 +6,7 @@ import asyncio
 from search_web import tool_handler
 from tool import Tool, ToolResult
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
-from multi_agent_orchestrator.agents import (
-    BedrockLLMAgent, BedrockLLMAgentOptions,
-    AgentResponse
-)
+from multi_agent_orchestrator.agents import BedrockLLMAgent, BedrockLLMAgentOptions, AgentResponse
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
@@ -67,7 +64,7 @@ Your tasks consist of:
     save_chat=False
 ))
 
-movie_producer_supervisor = SupervisorAgent(SupervisorAgentOptions(
+movie_producer_supervisor = BedrockLLMAgent(BedrockLLMAgentOptions(
     name='MovieProducerAgent',
     description="""
 Experienced movie producer overseeing script and casting.
@@ -79,11 +76,13 @@ Your tasks consist of:
 4. Provide a concise movie concept overview.
 5. Make sure to respond with a markdown format without mentioning it.
 """,
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0"
 ))
 
 supervisor = SupervisorAgent(SupervisorAgentOptions(
     name='MovieProducerAgent',
     team=[script_writer_agent, casting_director_agent],
+    supervisor=movie_producer_supervisor,
     trace=True
 ))
 
