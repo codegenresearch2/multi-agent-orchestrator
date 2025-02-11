@@ -7,9 +7,10 @@ from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.utils import Logger
 from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
-from tool import Tool, ToolResult, Tools
+from tool import Tool, ToolResult
+from datetime import datetime, timezone
 
-class AgentProviderType(Enum):
+class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
@@ -19,7 +20,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
-    extra_tools: Optional[Union[Tools, list[Tool]]] = None
+    extra_tools: Optional[Union[list[Tool], Tool]] = None
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -56,12 +57,12 @@ class SupervisorAgent(Agent):
         super().__init__(options)
         self.supervisor = options.supervisor
         self.team = options.team
-        self.supervisor_type = AgentProviderType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else AgentProviderType.ANTHROPIC.value
-        self.supervisor_tools = options.extra_tools.tools if options.extra_tools else []
+        self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
+        self.supervisor_tools = options.extra_tools if options.extra_tools else []
 
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == AgentProviderType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
@@ -188,20 +189,20 @@ When communicating with other agents, including the User, please follow these gu
 
             tool_name = (
                 tool_use_block.get("name")
-                if self.supervisor_type == AgentProviderType.BEDROCK.value
+                if self.supervisor_type == SupervisorType.BEDROCK.value
                 else tool_use_block.name
             )
 
             tool_id = (
                 tool_use_block.get("toolUseId")
-                if self.supervisor_type == AgentProviderType.BEDROCK.value
+                if self.supervisor_type == SupervisorType.BEDROCK.value
                 else tool_use_block.id
             )
 
             # Get input based on platform
             input_data = (
                 tool_use_block.get("input", {})
-                if self.supervisor_type == AgentProviderType.BEDROCK.value
+                if self.supervisor_type == SupervisorType.BEDROCK.value
                 else tool_use_block.input
             )
 
@@ -214,14 +215,14 @@ When communicating with other agents, including the User, please follow these gu
             # Format according to platform
             formatted_result = (
                 tool_result.to_bedrock_format()
-                if self.supervisor_type == AgentProviderType.BEDROCK.value
+                if self.supervisor_type == SupervisorType.BEDROCK.value
                 else tool_result.to_anthropic_format()
             )
 
             tool_results.append(formatted_result)
 
             # Create and return appropriate message format
-            if self.supervisor_type == AgentProviderType.BEDROCK.value:
+            if self.supervisor_type == SupervisorType.BEDROCK.value:
                 return ConversationMessage(
                     role=ParticipantRole.USER.value,
                     content=tool_results
@@ -278,8 +279,8 @@ When communicating with other agents, including the User, please follow these gu
 
     def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
         """Extract tool use block based on platform format."""
-        if self.supervisor_type == AgentProviderType.BEDROCK.value and "toolUse" in block:
+        if self.supervisor_type == SupervisorType.BEDROCK.value and "toolUse" in block:
             return block["toolUse"]
-        elif self.supervisor_type == AgentProviderType.ANTHROPIC.value and block.type == "tool_use":
+        elif self.supervisor_type == SupervisorType.ANTHROPIC.value and block.type == "tool_use":
             return block
         return None
