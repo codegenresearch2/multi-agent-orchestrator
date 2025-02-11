@@ -36,7 +36,7 @@ class DynamoDbChatStorage(ChatStorage):
         )
         existing_conversation.append(timestamped_message)
 
-        trimmed_conversation = self.trim_conversation(existing_conversation, max_history_size)
+        trimmed_conversation: List[TimestampedMessage] = self.trim_conversation(existing_conversation, max_history_size)
 
         item: Dict[str, Union[str, List[TimestampedMessage], int]] = {
             'PK': user_id,
