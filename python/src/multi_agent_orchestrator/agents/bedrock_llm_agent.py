@@ -13,7 +13,6 @@ class BedrockLLMAgentOptions(AgentOptions):
     streaming: Optional[bool] = None
     inference_config: Optional[Dict[str, Any]] = None
     guardrail_config: Optional[Dict[str, str]] = None
-    retriever: Optional[Retriever] = None
     tool_config: Optional[Dict[str, Any]] = None
     custom_system_prompt: Optional[Dict[str, Any]] = None
 
@@ -21,7 +20,7 @@ class BedrockLLMAgentOptions(AgentOptions):
 class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
-        self.client = boto3.client('bedrock-runtime', region_name=options.region)
+        self.client = boto3.client('bedrock-runtime', region_name=options.region or 'us-west-2')
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.streaming: bool = options.streaming
         self.inference_config: Dict[str, Any] = options.inference_config or {
@@ -30,7 +29,7 @@ class BedrockLLMAgent(Agent):
             'topP': 0.9,
             'stopSequences': []
         }
-        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config
+        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config or {}
         self.retriever: Optional[Retriever] = options.retriever
         self.tool_config: Optional[Dict[str, Any]] = options.tool_config
         self.prompt_template: str = f"""You are a {self.name}.
