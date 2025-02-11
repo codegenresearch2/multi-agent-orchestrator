@@ -1,44 +1,49 @@
-import requests
-from requests.exceptions import RequestException
 from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.utils import Tool, Tools
-import json
+import requests
+from requests.exceptions import RequestException
 
-async def fetch_weather_data(latitude: str, longitude: str):
+async def fetch_weather_data(input_data: Dict[str, str]) -> Dict[str, Any]:
     """
     Fetches weather data for the given latitude and longitude using the Open-Meteo API.
     Returns the weather data or an error message if the request fails.
 
-    :param latitude: the latitude of the location
-    :param longitude: the longitude of the location
+    :param input_data: A dictionary containing the latitude and longitude.
     :return: The weather data or an error message.
     """
+    latitude = input_data.get("latitude")
+    longitude = input_data.get("longitude")
     endpoint = "https://api.open-meteo.com/v1/forecast"
     params = {"latitude": latitude, "longitude": longitude, "current_weather": True}
+
     try:
         response = requests.get(endpoint, params=params)
         weather_data = response.json()
         response.raise_for_status()
-        return weather_data
+        return {"result": weather_data}
     except RequestException as e:
-        return e.response.json()
+        return {"error": e.response.json()}
     except Exception as e:
-        return {"error": type(e), "message": str(e)}
+        return {"error": {"type": type(e).__name__, "message": str(e)}}
 
-weather_tools: Tools = Tools(tools=[Tool(name="Weather_Tool",
-                            description="Get the current weather for a given location, based on its WGS84 coordinates.",
-                            func=fetch_weather_data,
-                            properties={
-                                "latitude": {
-                                    "type": "string",
-                                    "description": "Geographical WGS84 latitude of the location.",
-                                },
-                                "longitude": {
-                                    "type": "string",
-                                    "description": "Geographical WGS84 longitude of the location.",
-                                },
-                            })])
+weather_tools: Tools = Tools(tools=[
+    Tool(
+        name="Weather_Tool",
+        description="Get the current weather for a given location, based on its WGS84 coordinates.",
+        func=fetch_weather_data,
+        properties={
+            "latitude": {
+                "type": "string",
+                "description": "Geographical WGS84 latitude of the location.",
+            },
+            "longitude": {
+                "type": "string",
+                "description": "Geographical WGS84 longitude of the location.",
+            },
+        }
+    )
+])
 
 weather_tool_prompt = """
 You are a weather assistant that provides current weather data for user-specified locations using only
@@ -80,7 +85,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
                 tool_results.append({
                     "toolResult": {
                         "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": tool_response}],
+                        "content": [tool_response],
                     }
                 })
 
