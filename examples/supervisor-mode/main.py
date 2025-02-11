@@ -138,7 +138,7 @@ if __name__ == "__main__":
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
 
-    print(f"""Welcome to the interactive Multi-Agent system.\n
+    print(f"""Welcome to the interactive Multi-Agent system.
 I'm here to assist you with your questions.
 Here is the list of available agents:
 - TechAgent: Anything related to technology
