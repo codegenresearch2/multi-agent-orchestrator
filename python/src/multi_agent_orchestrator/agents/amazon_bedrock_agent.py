@@ -33,8 +33,8 @@ class AmazonBedrockAgent(Agent):
         super().__init__(options)
         self.agent_id = options.agent_id
         self.agent_alias_id = options.agent_alias_id
-        self.client = boto3.client('bedrock-agent-runtime',
-                                   region_name=options.region or os.environ.get('AWS_REGION'))
+        region = options.region or os.environ.get('AWS_REGION', 'us-east-1')
+        self.client = boto3.client('bedrock-agent-runtime', region_name=region)
 
     async def process_request(
         self,
@@ -64,17 +64,17 @@ class AmazonBedrockAgent(Agent):
             )
 
             completion = ""
-            for event in response['completion']:
-                if 'chunk' in event:
-                    chunk = event['chunk']
+            for event in response.get('completion', []):
+                chunk = event.get('chunk')
+                if chunk:
                     decoded_response = chunk['bytes'].decode('utf-8')
                     completion += decoded_response
                 else:
-                    Logger.warn("Received a chunk event with no chunk data")
+                    Logger.warning("Received a chunk event with no chunk data")
 
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
-                content=[{"text": completion}]
+                content=[{"text": completion or "No response from Bedrock agent."}]
             )
 
         except (BotoCoreError, ClientError) as error:
