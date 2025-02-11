@@ -1,7 +1,6 @@
 import uuid
 import asyncio
 import os
-import sys
 from dotenv import load_dotenv
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (
@@ -15,6 +14,7 @@ from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
 from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
+from datetime import datetime
 
 load_dotenv()
 
@@ -68,6 +68,9 @@ airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
                                               locale_id='en_US',
                                               bot_id=os.getenv('AIRLINES_BOT_ID', None),
                                               bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
+
+def get_current_date():
+    return datetime.now().strftime('%Y-%m-%d')
 
 supervisor_agent = SupervisorAgent(
     SupervisorAgentOptions(
