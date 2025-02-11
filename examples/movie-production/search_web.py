@@ -1,8 +1,20 @@
 import json
 from typing import Any
 from tool import ToolResult
-from multi_agent_orchestrator.types import ParticipantRole
+from multi_agent_orchestrator.types import ParticipantRole, ConversationMessage
+from tool import Tool
 from duckduckgo_search import DDGS
+from multi_agent_orchestrator.utils import Logger
+
+search_web_tool = Tool(name='search_web',
+                          description='Search Web for information',
+                          properties={
+                              'query': {
+                                  'type': 'string',
+                                  'description': 'The search query'
+                              }
+                          },
+                          required=['query'])
 
 async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> Any:
     if not response.content:
@@ -18,7 +30,7 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
             continue
 
         tool_name = tool_use_block.get('name')
-        tool_id = tool_use_block.get('id')
+        tool_id = tool_use_block.get('toolUseId')
         input_data = tool_use_block.get('input', {})
 
         # Process the tool use
@@ -35,11 +47,11 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
 
         tool_results.append(formatted_result)
 
-        # Create and return appropriate message format
-        return {
-            'role': ParticipantRole.USER.value,
-            'content': tool_results
-        }
+    # Create and return appropriate message format
+    return ConversationMessage(
+        role=ParticipantRole.USER.value,
+        content=tool_results
+    )
 
 def search_web(query: str, num_results: int = 2) -> str:
     """
@@ -58,12 +70,10 @@ def search_web(query: str, num_results: int = 2) -> str:
                 - 'knowledge_graph': The knowledge graph.
                 - 'related_questions': List of related questions.
     """
-
     try:
-        print(f"Searching DDG for: {query}")
+        Logger.info(f"Searching DDG for: {query}")
         search = DDGS().text(query, max_results=num_results)
         return '\n'.join(result.get('body', '') for result in search)
-
     except Exception as e:
-        print(f"Error searching for the query {query}: {e}")
+        Logger.error(f"Error searching for the query {query}: {e}")
         return f"Error searching for the query {query}: {e}"
