@@ -26,12 +26,12 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt = "You are an AI assistant."  # Add your system prompt here
+        self.system_prompt = "You are an AI assistant."  # Initialize system prompt
         self.inference_config = {
-            'max_tokens': options.inference_config.get('max_tokens', 1000),
+            'maxTokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'top_p': options.inference_config.get('top_p', 0.9),
-            'stop_sequences': options.inference_config.get('stop_sequences', [])
+            'topP': options.inference_config.get('top_p', 0.9),
+            'stopSequences': options.inference_config.get('stop_sequences', [])
         }
         self.tools = [
             {
@@ -66,16 +66,18 @@ class BedrockClassifier(Classifier):
         user_message = {"role": "user", "content": input_text}
 
         try:
-            response = self.client.invoke_model(
-                model_id=self.model_id,
-                content=[user_message],
-                system=self.system_prompt,
-                max_tokens=self.inference_config['max_tokens'],
-                temperature=self.inference_config['temperature'],
-                top_p=self.inference_config['top_p'],
-                stop_sequences=self.inference_config['stop_sequences'],
-                tools=self.tools
-            )
+            converse_cmd = {
+                "modelId": self.model_id,
+                "content": [user_message],
+                "system": self.system_prompt,
+                "maxTokens": self.inference_config['maxTokens'],
+                "temperature": self.inference_config['temperature'],
+                "topP": self.inference_config['topP'],
+                "stopSequences": self.inference_config['stopSequences'],
+                "tools": self.tools
+            }
+
+            response = self.client.converse(**converse_cmd)
 
             if not response.get('output'):
                 raise ValueError("No output received from Bedrock model")
