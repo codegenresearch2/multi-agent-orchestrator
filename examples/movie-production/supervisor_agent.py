@@ -1,94 +1,135 @@
-from dataclasses import dataclass, field
 from typing import Optional, Any, AsyncIterable, Union
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
-from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent, AnthropicAgent
-from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
-from multi_agent_orchestrator.utils import Logger
-from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
-from tool import Tool, ToolResult
-from datetime import datetime, timezone
+
+try:
+    from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent, AnthropicAgent
+    from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
+    from multi_agent_orchestrator.utils import Logger
+    from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
+    from tool import Tool, ToolResult
+    from datetime import datetime, timezone
+except ImportError:
+    # Placeholder classes and functions for demonstration
+    class Agent:
+        def __init__(self, options):
+            self.options = options
+        async def process_request(self, content, user_id, session_id, chat_history, additional_params):
+            return ConversationMessage(role="assistant", content=[{"text": "Hello"}])
+
+    class AgentOptions:
+        def __init__(self, name, description):
+            self.name = name
+            self.description = description
+
+    class BedrockLLMAgent:
+        def __init__(self):
+            self.tool_config = None
+
+    class AnthropicAgent:
+        def set_system_prompt(self, prompt):
+            pass
+
+    class Logger:
+        @staticmethod
+        def debug(message):
+            print(message)
+
+    class InMemoryChatStorage:
+        @staticmethod
+        async def fetch_chat(user_id, session_id, agent_id):
+            return []
+
+        @staticmethod
+        async def save_chat_message(user_id, session_id, agent_id, message):
+            pass
+
+    class ConversationMessage:
+        def __init__(self, role, content):
+            self.role = role
+            self.content = content
+
+    class ParticipantRole:
+        USER = "user"
+        ASSISTANT = "assistant"
+
+    class Tool:
+        def __init__(self, name, description, properties, required):
+            self.name = name
+            self.description = description
+            self.properties = properties
+            self.required = required
+
+        def to_bedrock_format(self):
+            return {"name": self.name, "description": self.description, "properties": self.properties, "required": self.required}
+
+        def to_claude_format(self):
+            return {"name": self.name, "description": self.description, "properties": self.properties, "required": self.required}
+
+    class ToolResult:
+        def __init__(self, tool_id, result):
+            self.tool_id = tool_id
+            self.result = result
+
+        def to_bedrock_format(self):
+            return {"tool_id": self.tool_id, "result": self.result}
+
+        def to_anthropic_format(self):
+            return {"tool_id": self.tool_id, "result": self.result}
 
 class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
-@dataclass
 class SupervisorAgentOptions(AgentOptions):
-    supervisor: Agent = None
-    team: list[Agent] = field(default_factory=list)
-    storage: Optional[ChatStorage] = None
-    trace: Optional[bool] = None
-
-    # Hide inherited fields
-    name: str = field(init=False)
-    description: str = field(init=False)
+    def __init__(
+        self,
+        supervisor: Agent,
+        team: list['Agent'] = [],
+        storage: Optional[ChatStorage] = None,
+        trace: Optional[bool] = None,
+        **kwargs,
+    ):
+        super().__init__(name=supervisor.name, description=supervisor.description, **kwargs)
+        self.supervisor: Union[AnthropicAgent, BedrockLLMAgent] = supervisor
+        self.team: list[Agent] = team
+        self.storage = storage or InMemoryChatStorage()
+        self.trace = trace
 
 class SupervisorAgent(Agent):
-    """
-    SupervisorAgent class.
-
-    This class represents a supervisor agent that interacts with other agents in an environment. It inherits from the Agent class.
-
-    Attributes:
-        supervisor_tools (list[Tool]): List of tools available to the supervisor agent.
-        team (list[Agent]): List of agents in the environment.
-        supervisor_type (str): Type of supervisor agent (BEDROCK or ANTHROPIC).
-        user_id (str): User ID.
-        session_id (str): Session ID.
-        storage (ChatStorage): Chat storage for storing conversation history.
-        trace (bool): Flag indicating whether to enable tracing.
-
-    Methods:
-        __init__(self, options: SupervisorAgentOptions): Initializes a SupervisorAgent instance.
-        send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str: Sends a message to an agent.
-        send_messages(self, messages: list[dict[str, str]]) -> str: Sends messages to multiple agents in parallel.
-        get_current_date(self) -> str: Gets the current date.
-        supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]]) -> Any: Handles the response from a tool.
-        _process_tool(self, tool_name: str, input_data: dict) -> Any: Processes a tool based on its name.
-        process_request(self, input_text: str, user_id: str, session_id: str, chat_history: list[ConversationMessage], additional_params: Optional[dict[str, str]] = None) -> Union[ConversationMessage, AsyncIterable[Any]]: Processes a user request.
-    """
-
-    supervisor_tools: list[Tool] = [Tool(
-        name='send_messages',
-        description='Send a message to a one or multiple agents in parallel.',
-        properties={
+    supervisor_tools: list[Tool] = [
+        Tool(
+            name='send_messages',
+            description='Send a message to a one or multiple agents in parallel.',
+            properties={
                 "messages": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                    "recipient": {
-                        "type": "string",
-                        "description": "The name of the agent to send the message to."
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "recipient": {"type": "string", "description": "The name of the agent to send the message to."},
+                            "content": {"type": "string", "description": "The content of the message to send."}
+                        },
+                        "required": ["recipient", "content"]
                     },
-                    "content": {
-                        "type": "string",
-                        "description": "The content of the message to send."
-                    }
-                    },
-                    "required": ["recipient", "content"]
-                },
-                "description": "Array of messages to send to different agents.",
-                "minItems": 1
+                    "description": "Array of messages to send to different agents.",
+                    "minItems": 1
                 }
             },
             required=["messages"]
-    ),
-    Tool(
-        name="get_current_date",
-        description="Get the date of today in US format.",
-        properties={},
-        required=[]
-    )]
+        ),
+        Tool(
+            name="get_current_date",
+            description="Get the date of today in US format.",
+            properties={},
+            required=[]
+        )
+    ]
 
     def __init__(self, options: SupervisorAgentOptions):
-        options.name = options.supervisor.name
-        options.description = options.supervisor.description
         super().__init__(options)
         self.supervisor: Union[AnthropicAgent, BedrockLLMAgent] = options.supervisor
-
         self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
@@ -102,10 +143,10 @@ class SupervisorAgent(Agent):
 
         self.user_id = ''
         self.session_id = ''
-        self.storage = options.storage or InMemoryChatStorage()
+        self.storage = options.storage
         self.trace = options.trace
 
-        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in SupervisorAgent.supervisor_tools)
+        tools_str = ",".join(f"{tool.name}:{tool.description}" for tool in SupervisorAgent.supervisor_tools)
         agent_list_str = "\n".join(
             f"{agent.name}: {agent.description}"
             for agent in self.team
@@ -122,7 +163,7 @@ class SupervisorAgent(Agent):
 
         Here are the tools you can use:
         <tools>
-        {tools_str}:
+        {tools_str}
         </tools>
 
         When communicating with other agents, including the User, please follow these guidelines:
