@@ -40,25 +40,15 @@ class BedrockClassifier(Classifier):
                     'description': 'Analyze the user input and provide structured output',
                     'inputSchema': {
                         'json': {
-                            'type': 'object',
                             'properties': {
-                                'userinput': {
-                                    'type': 'string',
-                                    'description': 'The original user input',
-                                },
-                                'selected_agent': {
-                                    'type': 'string',
-                                    'description': 'The name of the selected agent',
-                                },
-                                'confidence': {
-                                    'type': 'number',
-                                    'description': 'Confidence level between 0 and 1',
-                                },
+                                'userinput': {'type': 'string'},
+                                'selected_agent': {'type': 'string'},
+                                'confidence': {'type': 'number'}
                             },
-                            'required': ['userinput', 'selected_agent', 'confidence'],
-                        },
-                    },
-                },
+                            'required': ['userinput', 'selected_agent', 'confidence']
+                        }
+                    }
+                }
             }
         ]
 
@@ -74,20 +64,20 @@ class BedrockClassifier(Classifier):
             converse_cmd: Dict[str, Any] = {
                 "modelId": self.model_id,
                 "messages": [user_message.__dict__],
-                "system": self.system_prompt,
+                "system": [{"text": self.system_prompt}],
                 "toolConfig": {
                     "tools": self.tools,
                     "toolChoice": {
                         "tool": {
                             "name": "analyzePrompt",
-                        },
-                    },
+                        }
+                    }
                 },
                 "inferenceConfig": {
                     "maxTokens": self.inference_config['max_tokens'],
                     "temperature": self.inference_config['temperature'],
                     "topP": self.inference_config['top_p'],
-                    "stopSequences": self.inference_config['stop_sequences'],
+                    "stopSequences": self.inference_config['stop_sequences']
                 }
             }
 
@@ -96,10 +86,11 @@ class BedrockClassifier(Classifier):
             if not response.get('output'):
                 raise ValueError("No output received from Bedrock model")
 
-            if response['output'].get('message', {}).get('content'):
-                response_content_blocks = response['output']['message']['content']
+            output = response['output']
+            if output.get('message', {}).get('content'):
+                content_blocks = output['message']['content']
 
-                for content_block in response_content_blocks:
+                for content_block in content_blocks:
                     if 'toolUse' in content_block:
                         tool_use = content_block['toolUse']
                         if not tool_use:
