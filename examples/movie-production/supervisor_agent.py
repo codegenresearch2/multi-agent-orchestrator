@@ -1,14 +1,23 @@
-from dataclasses import dataclass, field
 from typing import Optional, Any, AsyncIterable, Union
+from dataclasses import dataclass, field
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
-from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent, AnthropicAgent
-from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
-from multi_agent_orchestrator.utils import Logger
-from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
-from tool import Tool, ToolResult
-from datetime import datetime, timezone
+
+try:
+    from multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent, AnthropicAgent
+    from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
+    from multi_agent_orchestrator.utils import Logger
+    from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
+    from tool import Tool, ToolResult
+    from datetime import datetime, timezone
+except ImportError:
+    from ...local_modules.multi_agent_orchestrator.agents import Agent, AgentOptions, BedrockLLMAgent, AnthropicAgent
+    from ...local_modules.multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
+    from ...local_modules.multi_agent_orchestrator.utils import Logger
+    from ...local_modules.multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
+    from ...local_modules.tool import Tool, ToolResult
+    from ...local_modules.datetime import datetime, timezone
 
 class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
@@ -20,6 +29,10 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
+
+    # Hide inherited fields
+    name: str = field(init=False)
+    description: str = field(init=False)
 
 class SupervisorAgent(Agent):
     """
@@ -80,8 +93,11 @@ class SupervisorAgent(Agent):
     )]
 
     def __init__(self, options: SupervisorAgentOptions):
+        options.name = options.supervisor.name
+        options.description = options.supervisor.description
         super().__init__(options)
         self.supervisor: Union[BedrockLLMAgent, AnthropicAgent] = options.supervisor
+
         self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
@@ -167,14 +183,16 @@ When communicating with other agents, including the User, please follow these gu
             if self.trace else None
         return f"{agent.name}: {response.content[0].get('text')}"
 
-    def send_messages(self, messages: list[dict[str, str]]) -> str:
+    async def send_messages(self, messages: list[dict[str, str]]) -> str:
         """Process all messages for all agents in parallel."""
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = []
-            for agent in self.team:
-                for message in messages:
-                    if agent.name == message.get('recipient'):
-                        future = executor.submit(
+        tasks = []
+
+        # Create tasks for each matching agent/message pair
+        for agent in self.team:
+            for message in messages:
+                if agent.name == message.get('recipient'):
+                    task = asyncio.create_task(
+                        asyncio.to_thread(
                             self.send_message,
                             agent,
                             message.get('content'),
@@ -182,21 +200,20 @@ When communicating with other agents, including the User, please follow these gu
                             self.session_id,
                             {}
                         )
-                        futures.append(future)
-            responses = []
+                    )
+                    tasks.append(task)
 
-            for future in as_completed(futures):
-                response = future.result()
-                responses.append(response)
+        # Gather and wait for all tasks to complete
+        if tasks:
+            responses = await asyncio.gather(*tasks)
+            return ''.join(responses)
+        return ''
 
-            # Wait for all tasks to complete
-            return ''.join(response for response in responses)
-
-    def get_current_date(self) -> str:
+    async def get_current_date(self) -> str:
         Logger.info('Using Tool : get_current_date')
         return datetime.now(timezone.utc).strftime('%m/%d/%Y')
 
-    def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]]) -> Any:
+    async def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]]) -> Any:
         if not response.content:
             raise ValueError("No content blocks in response")
 
@@ -212,7 +229,7 @@ When communicating with other agents, including the User, please follow these gu
             tool_id = tool_use_block.get("toolUseId")
             input_data = tool_use_block.get("input", {})
 
-            result = self._process_tool(tool_name, input_data)
+            result = await self._process_tool(tool_name, input_data)
             tool_result = ToolResult(tool_id, result)
             formatted_result = tool_result.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool_result.to_anthropic_format()
             tool_results.append(formatted_result)
@@ -228,17 +245,17 @@ When communicating with other agents, including the User, please follow these gu
                     'content': tool_results
                 }
 
-    def _process_tool(self, tool_name: str, input_data: dict) -> Any:
+    async def _process_tool(self, tool_name: str, input_data: dict) -> Any:
         if tool_name == "send_messages":
-            return self.send_messages(input_data.get('messages'))
+            return await self.send_messages(input_data.get('messages'))
         elif tool_name == "get_current_date":
-            return self.get_current_date()
+            return await self.get_current_date()
         else:
             error_msg = f"Unknown tool use name: {tool_name}"
             Logger.error(error_msg)
             return error_msg
 
-    def process_request(
+    async def process_request(
         self,
         input_text: str,
         user_id: str,
@@ -250,7 +267,7 @@ When communicating with other agents, including the User, please follow these gu
         self.user_id = user_id
         self.session_id = session_id
 
-        agents_history = self.storage.fetch_all_chats(user_id, session_id)
+        agents_history = await self.storage.fetch_all_chats(user_id, session_id)
         agents_memory = ''.join(
             f"{user_msg.role}:{user_msg.content[0].get('text','')}\n"
             f"{asst_msg.role}:{asst_msg.content[0].get('text','')}\n"
@@ -259,7 +276,7 @@ When communicating with other agents, including the User, please follow these gu
         )
 
         self.supervisor.set_system_prompt(self.prompt_template.replace('{AGENTS_MEMORY}', agents_memory))
-        response = self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
         return response
 
     def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
