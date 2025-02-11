@@ -26,7 +26,7 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION', 'us-east-1')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt = ""  # Add your system prompt here
+        self.system_prompt = "You are an AI assistant."  # Explicitly initialized
         self.inference_config = {
             'max_tokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
@@ -66,11 +66,14 @@ class BedrockClassifier(Classifier):
     async def process_request(self,
                               input_text: str,
                               chat_history: List[ConversationMessage]) -> ClassifierResult:
-        user_message = {"role": "user", "content": input_text}
+        user_message = ConversationMessage(
+            role=ParticipantRole.USER,
+            content=input_text
+        )
 
         converse_cmd = {
             "model": self.model_id,
-            "messages": [user_message],
+            "messages": [user_message.__dict__],
             "system": self.system_prompt,
             "tools": self.tools,
             "max_tokens": self.inference_config['max_tokens'],
@@ -89,8 +92,8 @@ class BedrockClassifier(Classifier):
                 response_content_blocks = response['output']['message']['content']
 
                 for content_block in response_content_blocks:
-                    if 'tool_use' in content_block:
-                        tool_use = content_block['tool_use']
+                    if 'toolUse' in content_block:
+                        tool_use = content_block['toolUse']
                         if not tool_use:
                             raise ValueError("No tool use found in the response")
 
