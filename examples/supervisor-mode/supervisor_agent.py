@@ -267,4 +267,4 @@ options = SupervisorAgentOptions(
 supervisor_agent = SupervisorAgent(options)
 
 
-This revised code snippet addresses the feedback provided by the oracle. It uses the `AgentProviderType` enum directly from the appropriate import, ensures flexibility for `extra_tools` using `Optional[Union[Tools, list[Tool]]]`, refines tool initialization, enhances the prompt template, and improves error handling and logging.
+This revised code snippet addresses the feedback provided by the oracle. It uses the `AgentProviderType` enum directly from the import, ensures flexibility for `extra_tools` using `Optional[Union[Tools, list[Tool]]]`, refines tool initialization, enhances the prompt template, and improves error handling and logging.
