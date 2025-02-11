@@ -35,25 +35,27 @@ class BedrockClassifier(Classifier):
         }
         self.tools = [
             {
-                'name': 'analyzePrompt',
-                'description': 'Analyze the user input and provide structured output',
-                'input_schema': {
-                    'type': 'object',
-                    'properties': {
-                        'userinput': {
-                            'type': 'string',
-                            'description': 'The original user input',
+                'toolSpec': {
+                    'name': 'analyzePrompt',
+                    'description': 'Analyze the user input and provide structured output',
+                    'inputSchema': {
+                        'type': 'object',
+                        'properties': {
+                            'userinput': {
+                                'type': 'string',
+                                'description': 'The original user input',
+                            },
+                            'selected_agent': {
+                                'type': 'string',
+                                'description': 'The name of the selected agent',
+                            },
+                            'confidence': {
+                                'type': 'number',
+                                'description': 'Confidence level between 0 and 1',
+                            },
                         },
-                        'selected_agent': {
-                            'type': 'string',
-                            'description': 'The name of the selected agent',
-                        },
-                        'confidence': {
-                            'type': 'number',
-                            'description': 'Confidence level between 0 and 1',
-                        },
+                        'required': ['userinput', 'selected_agent', 'confidence'],
                     },
-                    'required': ['userinput', 'selected_agent', 'confidence'],
                 },
             }
         ]
@@ -90,7 +92,7 @@ class BedrockClassifier(Classifier):
                         if not is_tool_input(tool_use['input']):
                             raise ValueError("Tool input does not match expected structure")
 
-                        intent_classifier_result = ClassifierResult(
+                        intent_classifier_result: ClassifierResult = ClassifierResult(
                             selected_agent=self.get_agent_by_id(tool_use['input']['selected_agent']),
                             confidence=float(tool_use['input']['confidence'])
                         )
