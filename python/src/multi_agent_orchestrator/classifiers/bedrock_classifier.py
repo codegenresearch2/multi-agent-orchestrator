@@ -26,7 +26,7 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt = "You are an AI assistant."  # Initialize the system prompt
+        self.system_prompt: str = "You are an AI assistant."  # Initialize the system prompt with type annotation
         self.inference_config = {
             'maxTokens': options.inference_config.get('maxTokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
