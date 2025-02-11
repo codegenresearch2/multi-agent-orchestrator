@@ -4,15 +4,16 @@ from multi_agent_orchestrator.utils import Tool, Tools
 import requests
 from requests.exceptions import RequestException
 
-async def fetch_weather_data(latitude: str, longitude: str = "") -> Dict[str, Any]:
+async def fetch_weather_data(input_data: Dict[str, str]) -> Dict[str, Any]:
     """
     Fetches weather data for the given latitude and longitude using the Open-Meteo API.
     Returns the weather data or an error message if the request fails.
 
-    :param latitude: the latitude of the location
-    :param longitude: the longitude of the location (default is an empty string)
-    :return: The weather data or an error message
+    :param input_data: A dictionary containing the latitude and longitude.
+    :return: The weather data or an error message.
     """
+    latitude = input_data.get("latitude")
+    longitude = input_data.get("longitude", "")
     endpoint = "https://api.open-meteo.com/v1/forecast"
     params = {"latitude": latitude, "longitude": longitude, "current_weather": True}
 
@@ -20,7 +21,7 @@ async def fetch_weather_data(latitude: str, longitude: str = "") -> Dict[str, An
         response = requests.get(endpoint, params=params)
         weather_data = response.json()
         response.raise_for_status()
-        return {"json": weather_data}
+        return {"result": weather_data}
     except RequestException as e:
         return {"error": e.response.json()}
     except Exception as e:
@@ -81,7 +82,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
             tool_use_name = tool_use_block.get("name")
 
             if tool_use_name == "Weather_Tool":
-                tool_response = await fetch_weather_data(tool_use_block["input"].get("latitude"), tool_use_block["input"].get("longitude", ""))
+                tool_response = await fetch_weather_data(tool_use_block["input"])
                 tool_results.append({
                     "toolResult": {
                         "toolUseId": tool_use_block["toolUseId"],
