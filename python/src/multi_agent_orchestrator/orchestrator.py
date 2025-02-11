@@ -14,7 +14,7 @@ from multi_agent_orchestrator.agents import (Agent,
                         BedrockLLMAgentOptions)
 from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
 
-DEFAULT_CONFIG=OrchestratorConfig()
+DEFAULT_CONFIG = OrchestratorConfig()
 
 @dataclass
 class MultiAgentOrchestrator:
@@ -34,11 +34,8 @@ class MultiAgentOrchestrator:
         elif not isinstance(options, OrchestratorConfig):
             raise ValueError("options must be a dictionary or an OrchestratorConfig instance")
 
-
         self.config = replace(DEFAULT_CONFIG, **asdict(options))
         self.storage = storage
-
-
         self.logger = Logger(self.config, logger)
         self.agents: Dict[str, Agent] = {}
         self.classifier: Classifier = classifier
@@ -49,7 +46,6 @@ class MultiAgentOrchestrator:
                 streaming=True,
                 description="A knowledgeable generalist capable of addressing a wide range of topics.",
             ))
-
 
     def add_agent(self, agent: Agent):
         if agent.id in self.agents:
@@ -79,7 +75,7 @@ class MultiAgentOrchestrator:
         user_input = params['user_input']
         user_id = params['user_id']
         session_id = params['session_id']
-        classifier_result:ClassifierResult = params['classifier_result']
+        classifier_result: ClassifierResult = params['classifier_result']
         additional_params = params.get('additional_params', {})
 
         if not classifier_result.selected_agent:
@@ -90,7 +86,6 @@ class MultiAgentOrchestrator:
         agent_chat_history = await self.storage.fetch_chat(user_id, session_id, selected_agent.id)
 
         self.logger.print_chat_history(agent_chat_history, selected_agent.id)
-        #self.logger.info(f"Routing intent '{user_input}' to {selected_agent.id} ...")
 
         response = await self.measure_execution_time(
             f"Agent {selected_agent.name} | Processing request",
@@ -112,7 +107,7 @@ class MultiAgentOrchestrator:
         chat_history = await self.storage.fetch_all_chats(user_id, session_id) or []
 
         try:
-            classifier_result:ClassifierResult = await self.measure_execution_time(
+            classifier_result: ClassifierResult = await self.measure_execution_time(
                 "Classifying user intent",
                 lambda: self.classifier.classify(user_input, chat_history)
             )
@@ -121,7 +116,7 @@ class MultiAgentOrchestrator:
                 self.print_intent(user_input, classifier_result)
 
         except Exception as error:
-            self.logger.error(f"Error during intent classification: {str(error)}")
+            self.logger.error("Error during intent classification:", error)
             return AgentResponse(
                 metadata=self.create_metadata(None,
                                               user_input,
@@ -138,12 +133,12 @@ class MultiAgentOrchestrator:
                 self.logger.info("Using default agent as no agent was selected")
             else:
                 return AgentResponse(
-                    metadata= self.create_metadata(classifier_result,
+                    metadata=self.create_metadata(classifier_result,
                                                    user_input,
                                                    user_id,
                                                    session_id,
                                                    additional_params),
-                    output= self.config.NO_SELECTED_AGENT_MESSAGE,
+                    output=self.config.NO_SELECTED_AGENT_MESSAGE,
                     streaming=False
                 )
 
@@ -162,11 +157,10 @@ class MultiAgentOrchestrator:
                                             session_id,
                                             additional_params)
 
-            # save question
             await self.save_message(
                 ConversationMessage(
                     role=ParticipantRole.USER.value,
-                    content=[{'text':user_input}]
+                    content=[{'text': user_input}]
                 ),
                 user_id,
                 session_id,
@@ -174,37 +168,33 @@ class MultiAgentOrchestrator:
             )
 
             if isinstance(agent_response, ConversationMessage):
-                # save the response
                 await self.save_message(agent_response,
                                         user_id,
                                         session_id,
                                         classifier_result.selected_agent)
 
-
             return AgentResponse(
-                    metadata=metadata,
-                    output=agent_response,
-                    streaming=False
-                )
+                metadata=metadata,
+                output=agent_response,
+                streaming=False
+            )
 
         except Exception as error:
-            self.logger.error(f"Error during agent dispatch or processing:{str(error)}")
+            self.logger.error("Error during agent dispatch or processing:", error)
             return AgentResponse(
-                    metadata= self.create_metadata(classifier_result,
-                                                   user_input,
-                                                   user_id,
-                                                   session_id,
-                                                   additional_params),
-                    output= self.config.GENERAL_ROUTING_ERROR_MSG_MESSAGE,
-                    streaming=False
-                )
+                metadata=self.create_metadata(classifier_result,
+                                               user_input,
+                                               user_id,
+                                               session_id,
+                                               additional_params),
+                output=self.config.GENERAL_ROUTING_ERROR_MSG_MESSAGE,
+                streaming=False
+            )
 
         finally:
             self.logger.print_execution_times(self.execution_times)
 
-
     def print_intent(self, user_input: str, intent_classifier_result: ClassifierResult) -> None:
-        """Print the classified intent."""
         Logger.log_header('Classified Intent')
         Logger.logger.info(f"> Text: {user_input}")
         Logger.logger.info(f"> Selected Agent: {intent_classifier_result.selected_agent.name \
