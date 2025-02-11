@@ -26,15 +26,15 @@ class AmazonBedrockAgent(Agent):
     def __init__(self, options: AmazonBedrockAgentOptions):
         """
         Constructs an instance of AmazonBedrockAgent with the specified options.
-        Initializes the agent ID, agent alias ID, and creates a new Bedrock agent runtime client.
+        Initializes the agent ID and agent alias ID, and creates a new Bedrock agent runtime client.
 
         :param options: Options to configure the Amazon Bedrock agent.
         """
         super().__init__(options)
         self.agent_id = options.agent_id
         self.agent_alias_id = options.agent_alias_id
-        self.client = boto3.client('bedrock-agent-runtime',
-                                   region_name=options.region or os.environ.get('AWS_REGION'))
+        self.region = options.region or os.environ.get('AWS_REGION', 'us-east-1')
+        self.client = boto3.client('bedrock-agent-runtime', region_name=self.region)
 
     async def process_request(
         self,
@@ -70,7 +70,7 @@ class AmazonBedrockAgent(Agent):
                     decoded_response = chunk['bytes'].decode('utf-8')
                     completion += decoded_response
                 else:
-                    Logger.warn("Received a chunk event with no chunk data")
+                    Logger.warning("Received a chunk event with no chunk data")
 
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
@@ -78,7 +78,7 @@ class AmazonBedrockAgent(Agent):
             )
 
         except (BotoCoreError, ClientError) as error:
-            Logger.error(f"Error processing request: {str(error)}")
+            Logger.error(f"Error processing request: {error}")
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
                 content=[{"text": "Sorry, I encountered an error while processing your request."}]
