@@ -69,7 +69,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
                 tool_results.append({
                     "toolResult": {
                         "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": {"result": tool_response}}],
+                        "content": [{"json": tool_response}],
                     }
                 })
 
@@ -101,6 +101,6 @@ async def fetch_weather_data(input_data):
         response.raise_for_status()
         return weather_data
     except RequestException as e:
-        return {"error": type(e), "message": str(e)}
+        return {"error": str(e), "message": "An error occurred while fetching weather data."}
     except Exception as e:
-        return {"error": type(e), "message": str(e)}
+        return {"error": str(e), "message": "An unexpected error occurred."}
