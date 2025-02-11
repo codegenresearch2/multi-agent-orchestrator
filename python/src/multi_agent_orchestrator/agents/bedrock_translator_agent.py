@@ -20,7 +20,7 @@ class BedrockTranslatorAgent(Agent):
         self.target_language = options.target_language or 'English'
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.client = boto3.client('bedrock-runtime', region_name=options.region)
-
+        
         # Default inference configuration
         self.inference_config: Dict[str, Any] = options.inference_config or {
             'maxTokens': 1000,
@@ -88,7 +88,7 @@ class BedrockTranslatorAgent(Agent):
                         "name": "Translate",
                     },
                 },
-            },
+            },            
             'inferenceConfig': self.inference_config
         }
 
@@ -97,6 +97,7 @@ class BedrockTranslatorAgent(Agent):
             response = self.client.converse(**converse_cmd)
 
             if 'output' not in response:
+                Logger.error("No output received from Bedrock model")
                 raise ValueError("No output received from Bedrock model")
 
             if response['output'].get('message', {}).get('content'):
@@ -106,13 +107,16 @@ class BedrockTranslatorAgent(Agent):
                     if "toolUse" in content_block:
                         tool_use = content_block["toolUse"]
                         if not tool_use:
+                            Logger.error("No tool use found in the response")
                             raise ValueError("No tool use found in the response")
 
                         if not isinstance(tool_use.get('input'), dict) or 'translation' not in tool_use['input']:
+                            Logger.error("Tool input does not match expected structure")
                             raise ValueError("Tool input does not match expected structure")
 
                         translation = tool_use['input']['translation']
                         if not isinstance(translation, str):
+                            Logger.error("Translation is not a string")
                             raise ValueError("Translation is not a string")
 
                         # Return the translated text
@@ -121,9 +125,10 @@ class BedrockTranslatorAgent(Agent):
                             content=[{"text": translation}]
                         )
 
+            Logger.error("No valid tool use found in the response")
             raise ValueError("No valid tool use found in the response")
         except Exception as error:
-            Logger.error(f"Error processing translation request:{str(error)}")
+            Logger.error(f"Error processing translation request: {str(error)}")
             raise
 
     def set_source_language(self, language: Optional[str]):
