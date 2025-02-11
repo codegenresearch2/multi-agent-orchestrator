@@ -12,7 +12,6 @@ class BedrockLLMAgentOptions(AgentOptions):
     streaming: Optional[bool] = None
     inference_config: Optional[Dict[str, Any]] = None
     guardrail_config: Optional[Dict[str, str]] = None
-    retriever: Optional[Any] = None
     tool_config: Optional[Dict[str, Any]] = None
     custom_system_prompt: Optional[Dict[str, Any]] = None
 
@@ -21,18 +20,17 @@ class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
         self.client = boto3.client('bedrock-runtime', region_name=options.region)
-        self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
-        self.streaming = options.streaming
-        self.inference_config = options.inference_config or {
+        self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
+        self.streaming: bool = options.streaming
+        self.inference_config: Dict[str, Any] = options.inference_config or {
             'maxTokens': 1000,
             'temperature': 0.0,
             'topP': 0.9,
             'stopSequences': []
         }
-        self.guardrail_config = options.guardrail_config
-        self.retriever = options.retriever
-        self.tool_config = options.tool_config
-        self.prompt_template = f"""You are a {self.name}.
+        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config
+        self.tool_config: Optional[Dict[str, Any]] = options.tool_config
+        self.prompt_template: str = f"""You are a {self.name}.
         {self.description}
         Provide helpful and accurate information based on your expertise.
         You will engage in an open-ended conversation,
@@ -53,9 +51,9 @@ class BedrockLLMAgent(Agent):
         - Maintain a consistent, respectful, and engaging tone tailored
         to the human's communication style.
         - Seamlessly transition between topics as the human introduces new subjects."""
-        self.system_prompt = ""
-        self.custom_variables = {}
-        self.default_max_recursions = 20
+        self.system_prompt: str = ""
+        self.custom_variables: TemplateVariables = {}
+        self.default_max_recursions: int = 20
 
         if options.custom_system_prompt:
             self.set_system_prompt(
