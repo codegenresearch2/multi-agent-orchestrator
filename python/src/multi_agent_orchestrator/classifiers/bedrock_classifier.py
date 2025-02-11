@@ -12,10 +12,11 @@ class BedrockClassifierOptions:
     def __init__(
         self,
         model_id: Optional[str] = None,
+        region: Optional[str] = None,
         inference_config: Optional[Dict[str, Any]] = None
     ):
         self.model_id = model_id
-        self.region = os.environ.get('REGION', 'us-east-1')
+        self.region = region or os.environ.get('REGION', 'us-east-1')
         self.inference_config = inference_config if inference_config is not None else {}
 
 
@@ -25,7 +26,7 @@ class BedrockClassifier(Classifier):
         self.region = options.region
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt: str = "You are an AI assistant."  # Declared and initialized
+        self.system_prompt: str  # Declared but not initialized
         self.inference_config = {
             'max_tokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
@@ -73,7 +74,7 @@ class BedrockClassifier(Classifier):
         converse_cmd = {
             "modelId": self.model_id,
             "messages": [user_message.__dict__],
-            "system": self.system_prompt,
+            "system": [{"text": self.system_prompt}],
             "tools": self.tools,
             "max_tokens": self.inference_config['max_tokens'],
             "temperature": self.inference_config['temperature'],
