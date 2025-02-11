@@ -1,11 +1,10 @@
+import os
 from typing import List, Optional, Dict, Any
 from anthropic import Anthropic
 from multi_agent_orchestrator.utils.helpers import is_tool_input
-from multi_agent_orchestrator.utils.logger import Logger
-from multi_agent_orchestrator.types import ConversationMessage
+from multi_agent_orchestrator.utils import Logger
+from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
 from multi_agent_orchestrator.classifiers import Classifier, ClassifierResult
-import logging
-logging.getLogger("httpx").setLevel(logging.WARNING)
 
 ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20240620"
 
@@ -16,12 +15,11 @@ class AnthropicClassifierOptions:
                  inference_config: Optional[Dict[str, Any]] = None):
         self.api_key = api_key
         self.model_id = model_id
-        self.inference_config = inference_config or {}
+        self.inference_config = inference_config if inference_config is not None else {}
 
 class AnthropicClassifier(Classifier):
     def __init__(self, options: AnthropicClassifierOptions):
         super().__init__()
-
         if not options.api_key:
             raise ValueError("Anthropic API key is required")
 
@@ -36,7 +34,7 @@ class AnthropicClassifier(Classifier):
             'stop_sequences': options.inference_config.get('stop_sequences', []),
         }
 
-        self.tools: List[Dict] = [
+        self.tools = [
             {
                 'name': 'analyzePrompt',
                 'description': 'Analyze the user input and provide structured output',
@@ -61,8 +59,7 @@ class AnthropicClassifier(Classifier):
             }
         ]
 
-        self.system_prompt = "You are an AI assistant."  # Add your system prompt here
-
+        self.system_prompt = "You are an AI assistant."
 
     async def process_request(self,
                               input_text: str,
@@ -96,5 +93,5 @@ class AnthropicClassifier(Classifier):
             return intent_classifier_result
 
         except Exception as error:
-            Logger.error(f"Error processing request:{str(error)}")
+            Logger.error(f"Error processing request: {str(error)}")
             raise error
