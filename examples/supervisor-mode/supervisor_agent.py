@@ -10,8 +10,7 @@ from multi_agent_orchestrator.storage import ChatStorage, InMemoryChatStorage
 from tool import Tool, ToolResult
 from datetime import datetime, timezone
 
-
-class SupervisorType(Enum):
+class AgentProviderType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
@@ -21,6 +20,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
+    extra_tools: list[Tool] = field(default_factory=list)
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -51,50 +51,19 @@ class SupervisorAgent(Agent):
         process_request(self, input_text: str, user_id: str, session_id: str, chat_history: list[ConversationMessage], additional_params: Optional[dict[str, str]] = None) -> Union[ConversationMessage, AsyncIterable[Any]]: Processes a user request.
     """
 
-    supervisor_tools: list[Tool] = [Tool(
-        name='send_messages',
-        description='Send a message to a one or multiple agents in parallel.',
-        properties={
-                "messages": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                    "recipient": {
-                        "type": "string",
-                        "description": "The name of the agent to send the message to."
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "The content of the message to send."
-                    }
-                    },
-                    "required": ["recipient", "content"]
-                },
-                "description": "Array of messages to send to different agents.",
-                "minItems": 1
-                }
-            },
-            required=["messages"]
-    ),
-    Tool(
-        name="get_current_date",
-        description="Get the date of today in US format.",
-        properties={},
-        required=[]
-    )]
+    supervisor_tools: list[Tool] = []
 
     def __init__(self, options: SupervisorAgentOptions):
         options.name = options.supervisor.name
         options.description = options.supervisor.description
         super().__init__(options)
-        self.supervisor: Union[BedrockLLMAgent, AnthropicAgent] = options.supervisor
-
+        self.supervisor = options.supervisor
         self.team = options.team
-        self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
+        self.supervisor_type = AgentProviderType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else AgentProviderType.ANTHROPIC.value
+        self.supervisor_tools = options.extra_tools + SupervisorAgent.supervisor_tools
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in SupervisorAgent.supervisor_tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == AgentProviderType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
@@ -106,7 +75,7 @@ class SupervisorAgent(Agent):
         self.storage = options.storage or InMemoryChatStorage()
         self.trace = options.trace
 
-        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in SupervisorAgent.supervisor_tools)
+        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in self.supervisor_tools)
         agent_list_str = "\n".join(
             f"{agent.name}: {agent.description}"
             for agent in self.team
@@ -221,20 +190,20 @@ When communicating with other agents, including the User, please follow these gu
 
             tool_name = (
                 tool_use_block.get("name")
-                if self.supervisor_type == SupervisorType.BEDROCK.value
+                if self.supervisor_type == AgentProviderType.BEDROCK.value
                 else tool_use_block.name
             )
 
             tool_id = (
                 tool_use_block.get("toolUseId")
-                if self.supervisor_type == SupervisorType.BEDROCK.value
+                if self.supervisor_type == AgentProviderType.BEDROCK.value
                 else tool_use_block.id
             )
 
             # Get input based on platform
             input_data = (
                 tool_use_block.get("input", {})
-                if self.supervisor_type == SupervisorType.BEDROCK.value
+                if self.supervisor_type == AgentProviderType.BEDROCK.value
                 else tool_use_block.input
             )
 
@@ -247,14 +216,14 @@ When communicating with other agents, including the User, please follow these gu
             # Format according to platform
             formatted_result = (
                 tool_result.to_bedrock_format()
-                if self.supervisor_type == SupervisorType.BEDROCK.value
+                if self.supervisor_type == AgentProviderType.BEDROCK.value
                 else tool_result.to_anthropic_format()
             )
 
             tool_results.append(formatted_result)
 
             # Create and return appropriate message format
-            if self.supervisor_type == SupervisorType.BEDROCK.value:
+            if self.supervisor_type == AgentProviderType.BEDROCK.value:
                 return ConversationMessage(
                     role=ParticipantRole.USER.value,
                     content=tool_results
@@ -302,13 +271,17 @@ When communicating with other agents, including the User, please follow these gu
         # update prompt with agents memory
         self.supervisor.set_system_prompt(self.prompt_template.replace('{AGENTS_MEMORY}', agents_memory))
         # call the supervisor
-        response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        try:
+            response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        except Exception as e:
+            Logger.error(f"Error processing request: {e}")
+            raise
         return response
 
     def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
         """Extract tool use block based on platform format."""
-        if self.supervisor_type == SupervisorType.BEDROCK.value and "toolUse" in block:
+        if self.supervisor_type == AgentProviderType.BEDROCK.value and "toolUse" in block:
             return block["toolUse"]
-        elif self.supervisor_type == SupervisorType.ANTHROPIC.value and block.type == "tool_use":
+        elif self.supervisor_type == AgentProviderType.ANTHROPIC.value and block.type == "tool_use":
             return block
         return None
