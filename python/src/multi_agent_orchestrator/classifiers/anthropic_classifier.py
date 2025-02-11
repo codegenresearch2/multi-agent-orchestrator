@@ -1,6 +1,5 @@
 from typing import List, Optional, Dict, Any
 from anthropic import Anthropic
-from multi_agent_orchestrator.utils.helpers import is_tool_input
 from multi_agent_orchestrator.utils import Logger
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import Classifier, ClassifierResult
@@ -30,7 +29,7 @@ class AnthropicClassifier(Classifier):
             'top_p': options.inference_config.get('top_p', 0.9),
             'stop_sequences': options.inference_config.get('stop_sequences', []),
         }
-        self.tools = [
+        self.tools: List[Dict] = [
             {
                 'name': 'analyzePrompt',
                 'description': 'Analyze the user input and provide structured output',
@@ -79,5 +78,5 @@ class AnthropicClassifier(Classifier):
             )
             return intent_classifier_result
         except Exception as error:
-            Logger.error("Error processing request:", error)
+            Logger.error(f"Error processing request: {str(error)}")
             raise error
