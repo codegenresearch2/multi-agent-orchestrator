@@ -14,7 +14,7 @@ from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage, AgentResponse
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
 from logging import Logger, basicConfig, getLogger
-from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt, get_current_date
+from multi_agent_orchestrator.utils import get_current_date  # Assuming this is a utility function
 
 load_dotenv()
 
@@ -22,6 +22,7 @@ load_dotenv()
 basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
 logger: Logger = getLogger(__name__)
 
+# Agent Initialization
 tech_agent = BedrockLLMAgent(
     options=BedrockLLMAgentOptions(
         name="TechAgent",
@@ -41,7 +42,7 @@ weather_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
         streaming=False,
         description="Specialized agent for giving weather forecast condition from a city.",
         tool_config={
-            'tool':weather_tool_description,
+            'tool': weather_tool_description,
             'toolMaxRecursions': 5,
             'useToolHandler': weather_tool_handler
         }
@@ -80,6 +81,7 @@ supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
     model_id="claude-3-5-sonnet-latest"
 ))
 
+# Orchestrator Initialization
 supervisor = MultiAgentOrchestrator(options=OrchestratorConfig(
         LOG_AGENT_CHAT=True,
         LOG_CLASSIFIER_CHAT=True,
