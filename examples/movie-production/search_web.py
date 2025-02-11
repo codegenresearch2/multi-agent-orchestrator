@@ -24,8 +24,8 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
     content_blocks = response.content
 
     for block in content_blocks:
-        # Determine if it's a tool use block based on platform
-        tool_use_block = block if 'type' in block and block['type'] == 'tool_use' else None
+        # Directly access the tool use block
+        tool_use_block = block.get('toolUse', None)
         if not tool_use_block:
             continue
 
