@@ -93,28 +93,21 @@ class SupervisorAgent(Agent):
     )]
 
     def __init__(self, options: SupervisorAgentOptions):
-        options.name = options.supervisor.name
-        options.description = options.supervisor.description
         super().__init__(options)
-        self.supervisor: Union[BedrockLLMAgent, AnthropicAgent] = options.supervisor
+        if isinstance(options.supervisor, AnthropicAgent):
+            self.supervisor = options.supervisor
+            self.supervisor_type = SupervisorType.ANTHROPIC.value
+        elif isinstance(options.supervisor, BedrockLLMAgent):
+            self.supervisor = options.supervisor
+            self.supervisor_type = SupervisorType.BEDROCK.value
+        else:
+            raise ValueError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
 
         self.team = options.team
-        self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
-        if not self.supervisor.tool_config:
-            self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in SupervisorAgent.supervisor_tools],
-                'toolMaxRecursions': 40,
-                'useToolHandler': self.supervisor_tool_handler
-            }
-        else:
-            raise RuntimeError('Supervisor tool config already set. Please do not set it manually.')
-
-        self.user_id = ''
-        self.session_id = ''
         self.storage = options.storage or InMemoryChatStorage()
         self.trace = options.trace
 
-        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in SupervisorAgent.supervisor_tools)
+        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in self.supervisor_tools)
         agent_list_str = "\n".join(
             f"{agent.name}: {agent.description}"
             for agent in self.team
@@ -162,15 +155,7 @@ class SupervisorAgent(Agent):
         """
         self.supervisor.set_system_prompt(self.prompt_template)
 
-        if isinstance(self.supervisor, BedrockLLMAgent):
-            Logger.debug("Supervisor is a BedrockLLMAgent")
-            Logger.debug('converting tool to Bedrock format')
-        elif isinstance(self.supervisor, AnthropicAgent):
-            Logger.debug("Supervisor is a AnthropicAgent")
-            Logger.debug('converting tool to Anthropic format')
-        else:
-            Logger.debug(f"Supervisor {self.supervisor.__class__} is not supported")
-            raise RuntimeError("Supervisor must be a BedrockLLMAgent or AnthropicAgent")
+        Logger.debug(f"Supervisor is a {self.supervisor_type} agent")
 
     def send_message(self, agent: Agent, content: str, user_id: str, session_id: str, additionalParameters: dict) -> str:
         Logger.info(f"\n===>>>>> Supervisor sending  {agent.name}: {content}")\
@@ -234,16 +219,16 @@ class SupervisorAgent(Agent):
             formatted_result = tool_result.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool_result.to_anthropic_format()
             tool_results.append(formatted_result)
 
-            if self.supervisor_type == SupervisorType.BEDROCK.value:
-                return ConversationMessage(
-                    role=ParticipantRole.USER.value,
-                    content=tool_results
-                )
-            else:
-                return {
-                    'role': ParticipantRole.USER.value,
-                    'content': tool_results
-                }
+        if self.supervisor_type == SupervisorType.BEDROCK.value:
+            return ConversationMessage(
+                role=ParticipantRole.USER.value,
+                content=tool_results
+            )
+        else:
+            return {
+                'role': ParticipantRole.USER.value,
+                'content': tool_results
+            }
 
     async def _process_tool(self, tool_name: str, input_data: dict) -> Any:
         """Process tool use based on tool name."""
