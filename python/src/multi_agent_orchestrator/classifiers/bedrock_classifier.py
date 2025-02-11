@@ -26,12 +26,12 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION', 'us-east-1')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt: str = "You are an AI assistant."  # Explicitly initialized with type hint
+        self.system_prompt: str = "You are an AI assistant."  # Declared and initialized
         self.inference_config = {
-            'maxTokens': options.inference_config.get('max_tokens', 1000),
+            'max_tokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'topP': options.inference_config.get('top_p', 0.9),
-            'stopSequences': options.inference_config.get('stop_sequences', [])
+            'top_p': options.inference_config.get('top_p', 0.9),
+            'stop_sequences': options.inference_config.get('stop_sequences', [])
         }
         self.tools = [
             {
@@ -67,7 +67,7 @@ class BedrockClassifier(Classifier):
                               input_text: str,
                               chat_history: List[ConversationMessage]) -> ClassifierResult:
         user_message = ConversationMessage(
-            role=ParticipantRole.USER,
+            role=ParticipantRole.USER.value,  # Using the correct attribute
             content=[{"text": input_text}]
         )
 
@@ -76,10 +76,10 @@ class BedrockClassifier(Classifier):
             "messages": [user_message.__dict__],
             "system": self.system_prompt,
             "tools": self.tools,
-            "maxTokens": self.inference_config['maxTokens'],
+            "maxTokens": self.inference_config['max_tokens'],
             "temperature": self.inference_config['temperature'],
-            "topP": self.inference_config['topP'],
-            "stopSequences": self.inference_config['stopSequences'],
+            "topP": self.inference_config['top_p'],
+            "stopSequences": self.inference_config['stop_sequences'],
         }
 
         try:
