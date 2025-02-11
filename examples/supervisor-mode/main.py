@@ -14,7 +14,7 @@ from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
 from logging import Logger, basicConfig, getLogger
-from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
+from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt, get_current_date
 
 load_dotenv()
 
