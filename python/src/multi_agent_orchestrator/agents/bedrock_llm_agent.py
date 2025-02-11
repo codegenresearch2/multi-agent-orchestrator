@@ -24,31 +24,18 @@ class BedrockLLMAgentOptions(AgentOptions):
 class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
-        if options.region:
-            self.client = boto3.client('bedrock-runtime', region_name=options.region)
-        else:
-            self.client = boto3.client('bedrock-runtime')
-
+        self.client = boto3.client('bedrock-runtime', region_name=options.region) if options.region else boto3.client('bedrock-runtime')
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.streaming: bool = options.streaming
-        self.inference_config: Dict[str, Any]
-
-        default_inference_config = {
+        self.inference_config: Dict[str, Any] = options.inference_config or {
             'maxTokens': 1000,
             'temperature': 0.0,
             'topP': 0.9,
             'stopSequences': []
         }
-
-        if options.inference_config:
-            self.inference_config = {**default_inference_config, **options.inference_config}
-        else:
-            self.inference_config = default_inference_config
-
-        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config or {}
+        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config
         self.retriever: Optional[Retriever] = options.retriever
         self.tool_config: Optional[Dict[str, Any]] = options.tool_config
-
         self.prompt_template: str = f"""You are a {self.name}.
         {self.description}
         Provide helpful and accurate information based on your expertise.
@@ -56,7 +43,7 @@ class BedrockLLMAgent(Agent):
         providing helpful and accurate information based on your expertise.
         The conversation will proceed as follows:
         - The human may ask an initial question or provide a prompt on any topic.
-        - You will provide a relevant and informative response.
+        - You will provide relevant and informative response.
         - The human may then follow up with additional questions or prompts related to your previous
         response, allowing for a multi-turn dialogue on that topic.
         - Or, the human may switch to a completely new and unrelated topic at any point.
@@ -70,7 +57,6 @@ class BedrockLLMAgent(Agent):
         - Maintain a consistent, respectful, and engaging tone tailored
         to the human's communication style.
         - Seamlessly transition between topics as the human introduces new subjects."""
-
         self.system_prompt: str = ""
         self.custom_variables: TemplateVariables = {}
         self.default_max_recursions: int = 20
@@ -89,16 +75,12 @@ class BedrockLLMAgent(Agent):
         chat_history: List[ConversationMessage],
         additional_params: Optional[Dict[str, str]] = None
     ) -> Union[ConversationMessage, AsyncIterable[Any]]:
-
         user_message = ConversationMessage(
             role=ParticipantRole.USER.value,
             content=[{'text': input_text}]
         )
-
         conversation = [*chat_history, user_message]
-
         self.update_system_prompt()
-
         system_prompt = self.system_prompt
 
         if self.retriever:
@@ -159,7 +141,7 @@ class BedrockLLMAgent(Agent):
                 content=response['output']['message']['content']
             )
         except Exception as error:
-            Logger.error(f"Error invoking Bedrock model:{str(error)}")
+            Logger.error(f"Error invoking Bedrock model: {str(error)}")
             raise
 
     async def handle_streaming_response(self, converse_input: Dict[str, Any]) -> ConversationMessage:
@@ -172,7 +154,7 @@ class BedrockLLMAgent(Agent):
                     self.callbacks.on_llm_new_token(content)
                     llm_response = llm_response + content
             return ConversationMessage(role=ParticipantRole.ASSISTANT.value,
-                                       content=[{'text':llm_response}]
+                                       content=[{'text': llm_response}]
                                        )
         except Exception as error:
             Logger.error(f"Error getting stream from Bedrock model: {str(error)}")
