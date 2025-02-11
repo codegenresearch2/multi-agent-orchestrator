@@ -13,7 +13,7 @@ class BedrockClassifierOptions:
         self,
         model_id: Optional[str] = None,
         region: Optional[str] = None,
-        inference_config: Optional[Dict] = None
+        inference_config: Optional[Dict[str, Any]] = None
     ):
         self.model_id = model_id
         self.region = region
@@ -26,10 +26,10 @@ class BedrockClassifier(Classifier):
         self.region = options.region or os.environ.get('REGION')
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt: str
+        self.system_prompt = ""  # Add your system prompt here
         self.inference_config = {
             'maxTokens': options.inference_config.get('maxTokens', 1000),
-            'temperature':  options.inference_config.get('temperature', 0.0),
+            'temperature': options.inference_config.get('temperature', 0.0),
             'topP': options.inference_config.get('top_p', 0.9),
             'stopSequences': options.inference_config.get('stop_sequences', [])
         }
@@ -61,7 +61,6 @@ class BedrockClassifier(Classifier):
                 },
             },
         ]
-
 
     async def process_request(self,
                               input_text: str,
@@ -118,5 +117,5 @@ class BedrockClassifier(Classifier):
             raise ValueError("No valid tool use found in the response")
 
         except (BotoCoreError, ClientError) as error:
-            Logger.error(f"Error processing request:{str(error)}")
+            Logger.error(f"Error processing request: {str(error)}")
             raise
