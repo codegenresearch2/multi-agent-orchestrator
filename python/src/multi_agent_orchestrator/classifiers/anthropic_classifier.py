@@ -22,7 +22,7 @@ class AnthropicClassifierOptions:
     def __init__(self, api_key: str, model_id: Optional[str] = None, inference_config: Optional[Dict[str, Any]] = None):
         self.api_key = api_key
         self.model_id = model_id or ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET
-        self.inference_config = inference_config or {}
+        self.inference_config = inference_config if inference_config is not None else {}
 
 class AnthropicClassifier(Classifier):
     """
@@ -39,7 +39,9 @@ class AnthropicClassifier(Classifier):
         if not options.api_key:
             raise ValueError("Anthropic API key is required")
         self.client = Anthropic(api_key=options.api_key)
-        self.model_id = options.model_id
+        self.model_id = options.model_id  # Ensure default value is assigned here
+
+        # Default inference configuration
         default_max_tokens = 1000
         self.inference_config = {
             'max_tokens': options.inference_config.get('max_tokens', default_max_tokens),
@@ -47,6 +49,11 @@ class AnthropicClassifier(Classifier):
             'top_p': options.inference_config.get('top_p', 0.9),
             'stop_sequences': options.inference_config.get('stop_sequences', []),
         }
+
+        # Add your system prompt here
+        self.system_prompt = "You are an AI assistant."
+
+        # Add your tools here
         self.tools: List[Dict] = [
             {
                 'name': 'analyzePrompt',
@@ -71,7 +78,6 @@ class AnthropicClassifier(Classifier):
                 },
             }
         ]
-        self.system_prompt = "You are an AI assistant."
 
     async def process_request(self, input_text: str, chat_history: List[ConversationMessage]) -> ClassifierResult:
         """
