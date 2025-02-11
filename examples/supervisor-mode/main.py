@@ -83,6 +83,7 @@ supervisor_agent = SupervisorAgent(
     SupervisorAgentOptions(
         supervisor=None,  # Assuming SupervisorAgentOptions should include a supervisor instance
         team=[airlines_agent, travel_agent, tech_agent, sales_agent, health_agent, claim_agent, weather_agent],
+        extra_tools=[],  # Adding extra_tools parameter as per gold code
         storage=DynamoDbChatStorage(
             table_name=os.getenv('DYNAMODB_CHAT_HISTORY_TABLE_NAME', None),
             region='us-east-1'
