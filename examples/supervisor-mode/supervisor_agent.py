@@ -22,7 +22,7 @@ class SupervisorAgentOptions(AgentOptions):
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
-    extra_tools: list[Tool] = field(default_factory=list)
+    extra_tools: Union[list[Tool], Tool] = field(default_factory=list)
 
     # Hide inherited fields
     name: str = field(init=False)
@@ -96,8 +96,9 @@ class SupervisorAgent(Agent):
         self.team = options.team
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
+            tools = self.supervisor_tools + (options.extra_tools if isinstance(options.extra_tools, list) else options.extra_tools.tools)
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools + options.extra_tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
