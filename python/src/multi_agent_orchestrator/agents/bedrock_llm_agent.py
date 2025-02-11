@@ -27,12 +27,13 @@ class BedrockLLMAgent(Agent):
         self.client = boto3.client('bedrock-runtime', region_name=options.region or 'us-west-2')
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.streaming: bool = options.streaming or False
-        self.inference_config: Dict[str, Any] = {
+        default_inference_config = {
             'maxTokens': 1000,
             'temperature': 0.0,
             'topP': 0.9,
             'stopSequences': []
-        } | (options.inference_config or {})
+        }
+        self.inference_config: Dict[str, Any] = {**default_inference_config, **(options.inference_config or {})}
         self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config or {}
         self.retriever: Optional[Retriever] = options.retriever
         self.tool_config: Optional[Dict[str, Any]] = options.tool_config
