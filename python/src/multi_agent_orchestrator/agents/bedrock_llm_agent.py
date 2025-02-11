@@ -12,6 +12,7 @@ class BedrockLLMAgentOptions(AgentOptions):
     streaming: Optional[bool] = None
     inference_config: Optional[Dict[str, Any]] = None
     guardrail_config: Optional[Dict[str, str]] = None
+    retriever: Optional[Any] = None
     tool_config: Optional[Dict[str, Any]] = None
     custom_system_prompt: Optional[Dict[str, Any]] = None
 
@@ -29,6 +30,7 @@ class BedrockLLMAgent(Agent):
             'stopSequences': []
         }
         self.guardrail_config = options.guardrail_config
+        self.retriever = options.retriever
         self.tool_config = options.tool_config
         self.prompt_template = f"""You are a {self.name}.
         {self.description}
