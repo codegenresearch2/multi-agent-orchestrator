@@ -3,9 +3,8 @@ from dataclasses import dataclass
 import re
 import boto3
 from multi_agent_orchestrator.agents import Agent, AgentOptions
-from multi_agent_orchestrator.types import (ConversationMessage, ParticipantRole,
-                       BEDROCK_MODEL_ID_CLAUDE_3_HAIKU, TemplateVariables)
-from multi_agent_orchestrator.utils import conversation_to_dict, Logger
+from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
+from multi_agent_orchestrator.utils import Logger
 
 
 @dataclass
@@ -13,7 +12,6 @@ class BedrockLLMAgentOptions(AgentOptions):
     streaming: Optional[bool] = None
     inference_config: Optional[Dict[str, Any]] = None
     guardrail_config: Optional[Dict[str, str]] = None
-    retriever: Optional[Any] = None
     tool_config: Optional[Dict[str, Any]] = None
     custom_system_prompt: Optional[Dict[str, Any]] = None
 
@@ -22,18 +20,17 @@ class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
         self.client = boto3.client('bedrock-runtime', region_name=options.region)
-        self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
-        self.streaming: bool = options.streaming
-        self.inference_config: Dict[str, Any] = options.inference_config or {
+        self.model_id = options.model_id
+        self.streaming = options.streaming
+        self.inference_config = options.inference_config or {
             'maxTokens': 1000,
             'temperature': 0.0,
             'topP': 0.9,
             'stopSequences': []
         }
-        self.guardrail_config: Optional[Dict[str, str]] = options.guardrail_config
-        self.retriever: Optional[Any] = options.retriever
-        self.tool_config: Optional[Dict[str, Any]] = options.tool_config
-        self.prompt_template: str = f"""You are a {self.name}.
+        self.guardrail_config = options.guardrail_config
+        self.tool_config = options.tool_config
+        self.prompt_template = f"""You are a {self.name}.
         {self.description}
         Provide helpful and accurate information based on your expertise.
         You will engage in an open-ended conversation,
@@ -54,9 +51,9 @@ class BedrockLLMAgent(Agent):
         - Maintain a consistent, respectful, and engaging tone tailored
         to the human's communication style.
         - Seamlessly transition between topics as the human introduces new subjects."""
-        self.system_prompt: str = ""
-        self.custom_variables: TemplateVariables = {}
-        self.default_max_recursions: int = 20
+        self.system_prompt = ""
+        self.custom_variables = {}
+        self.default_max_recursions = 20
 
         if options.custom_system_prompt:
             self.set_system_prompt(
@@ -80,32 +77,38 @@ class BedrockLLMAgent(Agent):
         self.update_system_prompt()
         system_prompt = self.system_prompt
 
-        if self.retriever:
-            response = await self.retriever.retrieve_and_combine_results(input_text)
-            context_prompt = "\nHere is the context to use to answer the user's question:\n" + response
-            system_prompt += context_prompt
-
-        converse_cmd = {
-            'modelId': self.model_id,
-            'messages': conversation_to_dict(conversation),
-            'system': [{'text': system_prompt}],
-            'inferenceConfig': self.inference_config
-        }
-
-        if self.guardrail_config:
-            converse_cmd["guardrailConfig"] = self.guardrail_config
-
         if self.tool_config:
-            converse_cmd["toolConfig"] = {'tools': self.tool_config["tool"]}
+            continue_with_tools = True
+            final_message = ConversationMessage(role=ParticipantRole.USER.value, content=[])
+            max_recursions = self.tool_config.get('toolMaxRecursions', self.default_max_recursions)
+
+            while continue_with_tools and max_recursions > 0:
+                bedrock_response = await self.handle_single_response(conversation)
+                conversation.append(bedrock_response)
+
+                if any('toolUse' in content for content in bedrock_response.content):
+                    await self.tool_config['useToolHandler'](bedrock_response, conversation)
+                else:
+                    continue_with_tools = False
+                    final_message = bedrock_response
+
+                max_recursions -= 1
+
+            return final_message
 
         if self.streaming:
-            return await self.handle_streaming_response(converse_cmd)
+            return await self.handle_streaming_response(conversation)
 
-        return await self.handle_single_response(converse_cmd)
+        return await self.handle_single_response(conversation)
 
-    async def handle_single_response(self, converse_input: Dict[str, Any]) -> ConversationMessage:
+    async def handle_single_response(self, conversation: List[ConversationMessage]) -> ConversationMessage:
         try:
-            response = self.client.converse(**converse_input)
+            response = self.client.converse(**{
+                'modelId': self.model_id,
+                'messages': [msg.to_dict() for msg in conversation],
+                'system': [{'text': self.system_prompt}],
+                'inferenceConfig': self.inference_config
+            })
             if 'output' not in response:
                 raise ValueError("No output received from Bedrock model")
             return ConversationMessage(
@@ -116,9 +119,14 @@ class BedrockLLMAgent(Agent):
             Logger.error(f"Error invoking Bedrock model: {str(error)}")
             raise
 
-    async def handle_streaming_response(self, converse_input: Dict[str, Any]) -> ConversationMessage:
+    async def handle_streaming_response(self, conversation: List[ConversationMessage]) -> ConversationMessage:
         try:
-            response = self.client.converse_stream(**converse_input)
+            response = self.client.converse_stream(**{
+                'modelId': self.model_id,
+                'messages': [msg.to_dict() for msg in conversation],
+                'system': [{'text': self.system_prompt}],
+                'inferenceConfig': self.inference_config
+            })
             llm_response = ''
             for chunk in response["stream"]:
                 if "contentBlockDelta" in chunk:
@@ -129,7 +137,7 @@ class BedrockLLMAgent(Agent):
             Logger.error(f"Error getting stream from Bedrock model: {str(error)}")
             raise
 
-    def set_system_prompt(self, template: Optional[str] = None, variables: Optional[TemplateVariables] = None) -> None:
+    def set_system_prompt(self, template: Optional[str] = None, variables: Optional[Dict[str, str]] = None) -> None:
         if template:
             self.prompt_template = template
         if variables:
@@ -141,7 +149,7 @@ class BedrockLLMAgent(Agent):
         self.system_prompt = self.replace_placeholders(self.prompt_template, all_variables)
 
     @staticmethod
-    def replace_placeholders(template: str, variables: TemplateVariables) -> str:
+    def replace_placeholders(template: str, variables: Dict[str, str]) -> str:
         def replace(match):
             key = match.group(1)
             if key in variables:
