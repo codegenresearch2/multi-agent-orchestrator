@@ -14,7 +14,7 @@ class ChainAgent(Agent):
         super().__init__(options)
         self.agents = options.agents
         self.default_output = options.default_output or "No output generated from the chain."
-        if not self.agents:
+        if len(self.agents) == 0:
             raise ValueError("ChainAgent requires at least one agent in the chain.")
 
     async def process_request(
