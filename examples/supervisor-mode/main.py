@@ -9,7 +9,8 @@ from multi_agent_orchestrator.agents import (
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
-from typing import Any, List, Dict
+from multi_agent_orchestrator.utils import Logger, Tool
+from datetime import datetime
 import sys, asyncio, uuid
 import os
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
@@ -76,6 +77,9 @@ supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
     model_id="claude-3-5-sonnet-latest"
 ))
 
+def get_current_date():
+    return datetime.now().strftime('%Y-%m-%d')
+
 supervisor = SupervisorAgent(
     SupervisorAgentOptions(
         supervisor=supervisor_agent,
@@ -93,16 +97,16 @@ async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str
         response: AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
         # Print metadata
-        print("\nMetadata:")
-        print(f"Selected Agent: {response.metadata.agent_name}")
+        Logger.info("\nMetadata:")
+        Logger.info(f"Selected Agent: {response.metadata.agent_name}")
         if isinstance(response, AgentResponse) and response.streaming is False:
             # Handle regular response
             if isinstance(response.output, str):
-                print(response.output)
+                Logger.info(response.output)
             elif isinstance(response.output, ConversationMessage):
-                print(response.output.content[0].get('text'))
+                Logger.info(response.output.content[0].get('text'))
     except Exception as e:
-        print(f"An error occurred: {e}")
+        Logger.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
 
@@ -125,7 +129,7 @@ if __name__ == "__main__":
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
 
-    print(f"""Welcome to the interactive Multi-Agent system.\n
+    Logger.info(f"""Welcome to the interactive Multi-Agent system.\n
 I'm here to assist you with your questions.
 Here is the list of available agents:
 - TechAgent: Anything related to technology
@@ -142,7 +146,7 @@ Here is the list of available agents:
         user_input = input("\nYou: ").strip()
 
         if user_input.lower() == 'quit':
-            print("Exiting the program. Goodbye!")
+            Logger.info("Exiting the program. Goodbye!")
             sys.exit()
 
         # Run the async function
