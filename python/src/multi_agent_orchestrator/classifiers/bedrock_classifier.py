@@ -13,7 +13,7 @@ class BedrockClassifierOptions:
         self,
         model_id: Optional[str] = None,
         region: Optional[str] = None,
-        inference_config: Optional[Dict[str, Any]] = None
+        inference_config: Optional[Dict] = None
     ):
         self.model_id = model_id
         self.region = region
@@ -30,8 +30,8 @@ class BedrockClassifier(Classifier):
         self.inference_config = {
             'maxTokens': options.inference_config.get('maxTokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
-            'top_p': options.inference_config.get('top_p', 0.9),  # Corrected key name
-            'stop_sequences': options.inference_config.get('stop_sequences', [])  # Corrected key name
+            'topP': options.inference_config.get('topP', 0.9),  # Corrected key name
+            'stopSequences': options.inference_config.get('stopSequences', [])  # Corrected key name
         }
         self.tools = [
             {
@@ -85,8 +85,8 @@ class BedrockClassifier(Classifier):
             "inferenceConfig": {
                 "maxTokens": self.inference_config['maxTokens'],
                 "temperature": self.inference_config['temperature'],
-                "top_p": self.inference_config['top_p'],
-                "stop_sequences": self.inference_config['stop_sequences'],
+                "topP": self.inference_config['topP'],
+                "stopSequences": self.inference_config['stopSequences'],
             },
         }
 
@@ -117,5 +117,5 @@ class BedrockClassifier(Classifier):
             raise ValueError("No valid tool use found in the response")
 
         except (BotoCoreError, ClientError) as error:
-            Logger.error(f"Error processing request: {str(error)}")
+            Logger.error(f"Error processing request: {str(error)}")  # Added space after colon
             raise
