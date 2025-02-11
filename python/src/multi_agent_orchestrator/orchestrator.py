@@ -7,18 +7,21 @@ from abc import ABC, abstractmethod
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Constants
-LOG_AGENT_CHAT = False
-LOG_CLASSIFIER_CHAT = False
-LOG_CLASSIFIER_RAW_OUTPUT = False
-LOG_CLASSIFIER_OUTPUT = False
-LOG_EXECUTION_TIMES = False
-MAX_RETRIES = 3
-USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED = True
-CLASSIFICATION_ERROR_MESSAGE = "I'm sorry, an error occurred while processing your request. Please try again later."
-NO_SELECTED_AGENT_MESSAGE = "I'm sorry, I couldn't determine how to handle your request. Could you please rephrase it?"
-GENERAL_ROUTING_ERROR_MSG_MESSAGE = "An error occurred while processing your request. Please try again later."
-MAX_MESSAGE_PAIRS_PER_AGENT = 100
+@dataclass
+class Config:
+    log_agent_chat: bool = False
+    log_classifier_chat: bool = False
+    log_classifier_raw_output: bool = False
+    log_classifier_output: bool = False
+    log_execution_times: bool = False
+    max_retries: int = 3
+    use_default_agent_if_none_identified: bool = True
+    classification_error_message: str = "I'm sorry, an error occurred while processing your request. Please try again later."
+    no_selected_agent_message: str = "I'm sorry, I couldn't determine how to handle your request. Could you please rephrase it?"
+    general_routing_error_msg_message: str = "An error occurred while processing your request. Please try again later."
+    max_message_pairs_per_agent: int = 100
+
+DEFAULT_CONFIG = Config()
 
 @dataclass
 class ConversationMessage:
@@ -109,21 +112,11 @@ class InMemoryChatStorage(ChatStorage):
 @dataclass
 class MultiAgentOrchestrator:
     def __init__(self,
-                 options: Dict[str, Any] = None,
+                 options: Config = DEFAULT_CONFIG,
                  storage: ChatStorage = InMemoryChatStorage(),
                  classifier: 'Classifier' = None,
                  logger: 'Logger' = None):
-        if options is None:
-            options = {}
-        valid_keys = {
-            'LOG_AGENT_CHAT', 'LOG_CLASSIFIER_CHAT', 'LOG_CLASSIFIER_RAW_OUTPUT',
-            'LOG_CLASSIFIER_OUTPUT', 'LOG_EXECUTION_TIMES', 'MAX_RETRIES',
-            'USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED', 'CLASSIFICATION_ERROR_MESSAGE',
-            'NO_SELECTED_AGENT_MESSAGE', 'GENERAL_ROUTING_ERROR_MSG_MESSAGE',
-            'MAX_MESSAGE_PAIRS_PER_AGENT'
-        }
-        options = {k: v for k, v in options.items() if k in valid_keys}
-        self.config = Config(**options)
+        self.config = options
         self.storage = storage
         self.logger = Logger(self.config, logger)
         self.agents: Dict[str, Agent] = {}
@@ -199,7 +192,7 @@ class MultiAgentOrchestrator:
                 lambda: self.classifier.classify(user_input, chat_history)
             )
 
-            if LOG_CLASSIFIER_OUTPUT:
+            if self.config.log_classifier_output:
                 self.print_intent(user_input, classifier_result)
 
         except Exception as error:
@@ -210,12 +203,12 @@ class MultiAgentOrchestrator:
                                               user_id,
                                               session_id,
                                               additional_params),
-                output=CLASSIFICATION_ERROR_MESSAGE,
+                output=self.config.classification_error_message,
                 streaming=False
             )
 
         if not classifier_result.selected_agent:
-            if USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED:
+            if self.config.use_default_agent_if_none_identified:
                 classifier_result = self.get_fallback_result()
                 self.logger.info("Using default agent as no agent was selected")
             else:
@@ -225,7 +218,7 @@ class MultiAgentOrchestrator:
                                                   user_id,
                                                   session_id,
                                                   additional_params),
-                    output=NO_SELECTED_AGENT_MESSAGE,
+                    output=self.config.no_selected_agent_message,
                     streaming=False
                 )
 
@@ -274,7 +267,7 @@ class MultiAgentOrchestrator:
                                               user_id,
                                               session_id,
                                               additional_params),
-                output=GENERAL_ROUTING_ERROR_MSG_MESSAGE,
+                output=self.config.general_routing_error_msg_message,
                 streaming=False
             )
 
@@ -289,7 +282,7 @@ class MultiAgentOrchestrator:
         Logger.logger.info('')
 
     async def measure_execution_time(self, timer_name: str, fn):
-        if not LOG_EXECUTION_TIMES:
+        if not self.config.log_execution_times:
             return await fn()
 
         start_time = time.time()
@@ -342,10 +335,10 @@ class MultiAgentOrchestrator:
                                                         session_id,
                                                         agent.id,
                                                         message,
-                                                        MAX_MESSAGE_PAIRS_PER_AGENT)
+                                                        self.config.max_message_pairs_per_agent)
 
 class Logger:
-    def __init__(self, config: 'Config', logger: 'Logger' = None):
+    def __init__(self, config: Config, logger: 'Logger' = None):
         self.config = config
         self.logger = logger if logger is not None else logging.getLogger(__name__)
 
