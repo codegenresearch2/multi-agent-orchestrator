@@ -1,23 +1,25 @@
-import uuid
-import asyncio
+from dotenv import load_dotenv
 import streamlit as st
 import os
-from  search_web import tool_handler
-from tool import Tool
+import uuid
+import asyncio
+from search_web import tool_handler
+from tool import Tool, ToolResult
 from multi_agent_orchestrator.orchestrator import MultiAgentOrchestrator, OrchestratorConfig
 from multi_agent_orchestrator.agents import (
-    AgentResponse,
-    BedrockLLMAgent,
-    BedrockLLMAgentOptions
+    AnthropicAgent, AnthropicAgentOptions,
+    AgentResponse
 )
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.classifiers import ClassifierResult
-from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
+from supervisor import SupervisorMode, SupervisorModeOptions
 
 # Set up the Streamlit app
 st.title("AI Movie Production Demo 🎬")
 st.caption("Bring your movie ideas to life with the teams of script writing and casting AI agents")
 
+# Get Anthropic API key from user
+anthropic_api_key = st.text_input("Enter Anthropic API Key to access Claude Sonnet 3.5", type="password", value=os.getenv('ANTHROPIC_API_KEY', None))
 
 search_web_tool = Tool(name='search_web',
                           description='Search Web for information',
@@ -29,8 +31,32 @@ search_web_tool = Tool(name='search_web',
                           },
                           required=['query'])
 
-script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    model_id='us.anthropic.claude-3-sonnet-20240229-v1:0',
+class ScriptWriterAgent(AnthropicAgent):
+    def __init__(self, options: AnthropicAgentOptions):
+        super().__init__(options)
+
+    async def generate_script_outline(self, movie_idea: str, genre: str, target_audience: str, estimated_runtime: int):
+        # Implementation for generating script outline
+        pass
+
+class CastingDirectorAgent(AnthropicAgent):
+    def __init__(self, options: AnthropicAgentOptions):
+        super().__init__(options)
+
+    async def suggest_actors(self, script_outline: str):
+        # Implementation for suggesting actors
+        pass
+
+class MovieProducerSupervisor(AnthropicAgent):
+    def __init__(self, options: AnthropicAgentOptions):
+        super().__init__(options)
+
+    async def oversee_process(self, script_writer: ScriptWriterAgent, casting_director: CastingDirectorAgent, movie_idea: str, genre: str, target_audience: str, estimated_runtime: int):
+        # Implementation for overseeing the process
+        pass
+
+script_writer_agent = ScriptWriterAgent(AnthropicAgentOptions(
+    api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="ScriptWriterAgent",
     description="""\
 You are an expert screenplay writer. Given a movie idea and genre,
@@ -42,8 +68,8 @@ Your tasks consist of:
 3. Ensure the script aligns with the specified genre and target audience
 """))
 
-casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
-    model_id='anthropic.claude-3-haiku-20240307-v1:0',
+casting_director_agent = CastingDirectorAgent(AnthropicAgentOptions(
+    api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name="CastingDirectorAgent",
     description="""\
 You are a talented casting director. Given a script outline and character descriptions,\
@@ -58,15 +84,15 @@ Your tasks consist of:
 """,
 
 tool_config={
-    'tool': [search_web_tool.to_bedrock_format()],
+    'tool': [search_web_tool.to_claude_format()],
     'toolMaxRecursions': 20,
     'useToolHandler': tool_handler
     },
     save_chat=False
 ))
 
-movie_producer_supervisor = BedrockLLMAgent(BedrockLLMAgentOptions(
-    model_id='us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+movie_producer_supervisor = MovieProducerSupervisor(AnthropicAgentOptions(
+    api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
     description="""
 Experienced movie producer overseeing script and casting.
@@ -80,18 +106,16 @@ Your tasks consist of:
 """,
 ))
 
-supervisor = SupervisorAgent(SupervisorAgentOptions(
+supervisor = SupervisorMode(SupervisorModeOptions(
     supervisor=movie_producer_supervisor,
     team=[script_writer_agent, casting_director_agent],
     trace=True
 ))
 
+async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
+    classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
 
-
-async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input:str, _user_id:str, _session_id:str):
-    classifier_result=ClassifierResult(selected_agent=supervisor, confidence=1.0)
-
-    response:AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
+    response: AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
     # Print metadata
     print("\nMetadata:")
@@ -99,10 +123,9 @@ async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input:str,
     if isinstance(response, AgentResponse) and response.streaming is False:
         # Handle regular response
         if isinstance(response.output, str):
-            return (response.output)
+            return response.output
         elif isinstance(response.output, ConversationMessage):
-                return (response.output.content[0].get('text'))
-
+            return response.output.content[0].get('text')
 
 # Initialize the orchestrator with some options
 orchestrator = MultiAgentOrchestrator(options=OrchestratorConfig(
