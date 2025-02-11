@@ -33,8 +33,10 @@ class AmazonBedrockAgent(Agent):
         super().__init__(options)
         self.agent_id = options.agent_id
         self.agent_alias_id = options.agent_alias_id
-        self.region = options.region or os.environ.get('AWS_REGION', 'us-east-1')
-        self.client = boto3.client('bedrock-agent-runtime', region_name=self.region)
+        self.client = boto3.client(
+            'bedrock-agent-runtime',
+            region_name=options.region or os.environ.get('AWS_REGION', 'us-east-1')
+        )
 
     async def process_request(
         self,
