@@ -72,6 +72,13 @@ async def weather_tool_handler(response: ConversationMessage, conversation: List
                             "content": [{"json": tool_response}],
                         }
                     })
+                except RequestException as e:
+                    tool_results.append({
+                        "toolResult": {
+                            "toolUseId": tool_use_block["toolUseId"],
+                            "content": [{"json": {"error": str(e)}}],
+                        }
+                    })
                 except Exception as e:
                     tool_results.append({
                         "toolResult": {
@@ -108,6 +115,6 @@ async def fetch_weather_data(input_data):
         response.raise_for_status()
         return weather_data
     except RequestException as e:
-        return e.response.json()
+        return {"error": type(e).__name__, "message": str(e)}
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": type(e).__name__, "message": str(e)}
