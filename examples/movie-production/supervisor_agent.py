@@ -1,6 +1,6 @@
+from dataclasses import dataclass, field
 from typing import Optional, Any, AsyncIterable, Union
 from enum import Enum
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 
 try:
@@ -82,20 +82,16 @@ class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
+@dataclass
 class SupervisorAgentOptions(AgentOptions):
-    def __init__(
-        self,
-        supervisor: Agent,
-        team: list['Agent'] = [],
-        storage: Optional[ChatStorage] = None,
-        trace: Optional[bool] = None,
-        **kwargs,
-    ):
-        super().__init__(name=supervisor.name, description=supervisor.description, **kwargs)
-        self.supervisor: Union[AnthropicAgent, BedrockLLMAgent] = supervisor
-        self.team: list[Agent] = team
-        self.storage = storage or InMemoryChatStorage()
-        self.trace = trace
+    supervisor: Agent = None
+    team: list['Agent'] = field(default_factory=list)
+    storage: Optional[ChatStorage] = None
+    trace: Optional[bool] = None
+
+    # Hide inherited fields
+    name: str = field(init=False)
+    description: str = field(init=False)
 
 class SupervisorAgent(Agent):
     supervisor_tools: list[Tool] = [
@@ -128,6 +124,8 @@ class SupervisorAgent(Agent):
     ]
 
     def __init__(self, options: SupervisorAgentOptions):
+        options.name = options.supervisor.name
+        options.description = options.supervisor.description
         super().__init__(options)
         self.supervisor: Union[AnthropicAgent, BedrockLLMAgent] = options.supervisor
         self.team = options.team
@@ -143,7 +141,7 @@ class SupervisorAgent(Agent):
 
         self.user_id = ''
         self.session_id = ''
-        self.storage = options.storage
+        self.storage = options.storage or InMemoryChatStorage()
         self.trace = options.trace
 
         tools_str = ",".join(f"{tool.name}:{tool.description}" for tool in SupervisorAgent.supervisor_tools)
