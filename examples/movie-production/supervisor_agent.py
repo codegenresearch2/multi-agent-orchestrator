@@ -1,4 +1,4 @@
-import logging
+from dataclasses import dataclass
 from typing import Optional, Any, AsyncIterable, Union
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -93,17 +93,16 @@ except ImportError:
         def to_anthropic_format(self):
             return self.result
 
+@dataclass
+class SupervisorAgentOptions(AgentOptions):
+    supervisor: Agent = None
+    team: list[Agent] = None
+    storage: Optional[ChatStorage] = None
+    trace: Optional[bool] = None
+
 class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
-
-class SupervisorAgentOptions(AgentOptions):
-    def __init__(self, supervisor: Agent, team: list[Agent], storage: Optional[ChatStorage] = None, trace: Optional[bool] = None):
-        super().__init__(supervisor.name, supervisor.description)
-        self.supervisor = supervisor
-        self.team = team
-        self.storage = storage
-        self.trace = trace
 
 class SupervisorAgent(Agent):
     supervisor_tools: list[Tool] = [
@@ -144,7 +143,7 @@ class SupervisorAgent(Agent):
     def __init__(self, options: SupervisorAgentOptions):
         super().__init__(options)
         self.supervisor: Union[AnthropicAgent, BedrockLLMAgent] = options.supervisor
-        self.team = options.team
+        self.team = options.team if options.team is not None else []
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
