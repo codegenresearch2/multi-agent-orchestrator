@@ -11,18 +11,35 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20240620"
 
 class AnthropicClassifierOptions:
+    """
+    A class to hold the options for the AnthropicClassifier.
+    
+    Attributes:
+        api_key (str): The API key for the Anthropic service.
+        model_id (Optional[str]): The ID of the model to use. Defaults to CLAUDE_3_5_SONNET.
+        inference_config (Optional[Dict[str, Any]]): Configuration for the inference.
+    """
     def __init__(self, api_key: str, model_id: Optional[str] = None, inference_config: Optional[Dict[str, Any]] = None):
         self.api_key = api_key
-        self.model_id = model_id
+        self.model_id = model_id or ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET
         self.inference_config = inference_config or {}
 
 class AnthropicClassifier(Classifier):
+    """
+    A classifier that uses the Anthropic API to process requests.
+    """
     def __init__(self, options: AnthropicClassifierOptions):
+        """
+        Initializes the AnthropicClassifier.
+        
+        Args:
+            options (AnthropicClassifierOptions): The options for the classifier.
+        """
         super().__init__()
         if not options.api_key:
             raise ValueError("Anthropic API key is required")
         self.client = Anthropic(api_key=options.api_key)
-        self.model_id = options.model_id or ANTHROPIC_MODEL_ID_CLAUDE_3_5_SONNET
+        self.model_id = options.model_id
         default_max_tokens = 1000
         self.inference_config = {
             'max_tokens': options.inference_config.get('max_tokens', default_max_tokens),
@@ -54,9 +71,19 @@ class AnthropicClassifier(Classifier):
                 },
             }
         ]
-        self.system_prompt = "You are an AI assistant."  # Add your system prompt here
+        self.system_prompt = "You are an AI assistant."
 
     async def process_request(self, input_text: str, chat_history: List[ConversationMessage]) -> ClassifierResult:
+        """
+        Processes a request using the Anthropic API.
+        
+        Args:
+            input_text (str): The input text to process.
+            chat_history (List[ConversationMessage]): The chat history.
+        
+        Returns:
+            ClassifierResult: The result of the classification.
+        """
         user_message = {"role": "user", "content": input_text}
         try:
             response = self.client.messages.create(
