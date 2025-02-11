@@ -25,7 +25,7 @@ class ComprehendFilterAgentOptions(AgentOptions):
         self.sentiment_threshold = sentiment_threshold
         self.toxicity_threshold = toxicity_threshold
         self.allow_pii = allow_pii
-        self.language_code = self.validate_language_code(language_code) or 'en'
+        self.language_code = language_code
 
 class ComprehendFilterAgent(Agent):
     def __init__(self, options: ComprehendFilterAgentOptions):
@@ -42,7 +42,7 @@ class ComprehendFilterAgent(Agent):
         self.sentiment_threshold = options.sentiment_threshold
         self.toxicity_threshold = options.toxicity_threshold
         self.allow_pii = options.allow_pii
-        self.language_code = self.validate_language_code(options.language_code) or 'en'
+        self.language_code = options.language_code
         
         # Ensure at least one check is enabled
         if not any([self.enable_sentiment_check, self.enable_pii_check, self.enable_toxicity_check]):
@@ -142,18 +142,3 @@ class ComprehendFilterAgent(Agent):
                 if label['Score'] > self.toxicity_threshold:
                     toxic_labels.append(label['Name'])
         return toxic_labels
-
-    def set_language_code(self, language_code: str):
-        validated_language_code = self.validate_language_code(language_code)
-        if validated_language_code:
-            self.language_code = validated_language_code
-        else:
-            raise ValueError(f"Invalid language code: {language_code}")
-
-    @staticmethod
-    def validate_language_code(language_code: Optional[str]) -> Optional[str]:
-        if not language_code:
-            return None
-
-        valid_language_codes = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ar', 'hi', 'ja', 'ko', 'zh', 'zh-TW']
-        return language_code if language_code in valid_language_codes else None
