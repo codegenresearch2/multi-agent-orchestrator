@@ -65,8 +65,8 @@ class AmazonBedrockAgent(Agent):
 
             completion = ""
             for event in response.get('completion', []):
-                if 'chunk' in event:
-                    chunk = event['chunk']
+                chunk = event.get('chunk')
+                if chunk:
                     decoded_response = chunk['bytes'].decode('utf-8')
                     completion += decoded_response
                 else:
