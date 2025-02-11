@@ -53,7 +53,7 @@ class AnthropicClassifier(Classifier):
                 },
             }
         ]
-        self.system_prompt = "You are an AI assistant."
+        self.system_prompt = "You are an AI assistant."  # Add your system prompt here
 
     async def process_request(self, input_text: str, chat_history: List[ConversationMessage]) -> ClassifierResult:
         user_message = {"role": "user", "content": input_text}
