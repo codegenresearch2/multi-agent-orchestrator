@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import re
 import boto3
 from multi_agent_orchestrator.agents import Agent, AgentOptions
-from multi_agent_orchestrator.types import (ConversationMessage, ParticipantRole, BEDROCK_MODEL_ID_CLAUDE_3_HAIKU)
+from multi_agent_orchestrator.types import (ConversationMessage, ParticipantRole, BEDROCK_MODEL_ID_CLAUDE_3_HAIKU, TemplateVariables)
 from multi_agent_orchestrator.utils import conversation_to_dict, Logger
 from multi_agent_orchestrator.retrievers import Retriever
 
@@ -13,6 +13,7 @@ class BedrockLLMAgentOptions(AgentOptions):
     streaming: Optional[bool] = None
     inference_config: Optional[Dict[str, Any]] = None
     guardrail_config: Optional[Dict[str, str]] = None
+    retriever: Optional[Retriever] = None
     tool_config: Optional[Dict[str, Any]] = None
     custom_system_prompt: Optional[Dict[str, Any]] = None
 
@@ -54,7 +55,7 @@ class BedrockLLMAgent(Agent):
         to the human's communication style.
         - Seamlessly transition between topics as the human introduces new subjects."""
         self.system_prompt: str = ""
-        self.custom_variables: Dict[str, str] = {}
+        self.custom_variables: TemplateVariables = {}
 
         if options.custom_system_prompt:
             self.set_system_prompt(
@@ -121,7 +122,7 @@ class BedrockLLMAgent(Agent):
             Logger.error(f"Error getting stream from Bedrock model: {str(error)}")
             raise
 
-    def set_system_prompt(self, template: Optional[str] = None, variables: Optional[Dict[str, str]] = None):
+    def set_system_prompt(self, template: Optional[str] = None, variables: Optional[TemplateVariables] = None):
         if template:
             self.prompt_template = template
         if variables:
@@ -133,7 +134,7 @@ class BedrockLLMAgent(Agent):
         self.system_prompt = self.replace_placeholders(self.prompt_template, all_variables)
 
     @staticmethod
-    def replace_placeholders(template: str, variables: Dict[str, str]) -> str:
+    def replace_placeholders(template: str, variables: TemplateVariables) -> str:
         def replace(match):
             key = match.group(1)
             if key in variables:
