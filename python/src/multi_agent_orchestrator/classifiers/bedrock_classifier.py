@@ -26,7 +26,7 @@ class BedrockClassifier(Classifier):
         self.region = options.region
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
-        self.system_prompt: str  # Declared but not initialized
+        self.system_prompt: str = "You are an AI assistant."  # Initialized here
         self.inference_config = {
             'max_tokens': options.inference_config.get('max_tokens', 1000),
             'temperature': options.inference_config.get('temperature', 0.0),
@@ -74,8 +74,13 @@ class BedrockClassifier(Classifier):
         converse_cmd = {
             "modelId": self.model_id,
             "messages": [user_message.__dict__],
-            "system": [{"text": self.system_prompt}],
+            "system": self.system_prompt,
             "tools": self.tools,
+            "toolChoice": {
+                "tool": {
+                    "name": "analyzePrompt",
+                },
+            },
             "max_tokens": self.inference_config['max_tokens'],
             "temperature": self.inference_config['temperature'],
             "top_p": self.inference_config['top_p'],
