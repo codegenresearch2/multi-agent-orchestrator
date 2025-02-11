@@ -1,7 +1,7 @@
 import json
 from typing import Any
 from tool import ToolResult
-from multi_agent_orchestrator.types import ParticipantRole, ConversationMessage
+from multi_agent_orchestrator.types import ParticipantRole
 from duckduckgo_search import DDGS
 from multi_agent_orchestrator.utils import Logger
 
@@ -11,7 +11,7 @@ except ImportError:
     class BedrockLLMAgent:
         pass
 
-async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> ConversationMessage:
+async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> Any:
     if not response.content:
         raise ValueError("No content blocks in response")
 
@@ -37,10 +37,7 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> Co
         formatted_result = tool_result.to_bedrock_format()
         tool_results.append(formatted_result)
 
-    return ConversationMessage(
-        role=ParticipantRole.USER.value,
-        content=tool_results
-    )
+    return tool_results
 
 async def search_web(query: str, num_results: int = 2) -> str:
     """
