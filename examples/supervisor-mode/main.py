@@ -12,6 +12,7 @@ from multi_agent_orchestrator.agents import (
 from multi_agent_orchestrator.classifiers import ClassifierResult
 from multi_agent_orchestrator.types import ConversationMessage
 from multi_agent_orchestrator.storage import DynamoDbChatStorage
+from multi_agent_orchestrator.utils import Logger, Tool
 from weather_tool import weather_tool_description, weather_tool_handler, weather_tool_prompt
 from supervisor_agent import SupervisorAgent, SupervisorAgentOptions
 from datetime import datetime, timezone
@@ -74,7 +75,7 @@ airlines_agent = LexBotAgent(LexBotAgentOptions(name='AirlinesBot',
                                               bot_id=os.getenv('AIRLINES_BOT_ID', None),
                                               bot_alias_id=os.getenv('AIRLINES_BOT_ALIAS_ID', None)))
 
-async def get_current_date():
+def get_current_date():
     """
     Returns the current date in the format 'MM/DD/YYYY'.
     """
@@ -83,7 +84,7 @@ async def get_current_date():
     return current_date
 
 # Adding get_current_date as a tool
-extra_tools = [get_current_date]
+extra_tools = [Tool(get_current_date)]
 
 supervisor_agent = AnthropicAgent(AnthropicAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
