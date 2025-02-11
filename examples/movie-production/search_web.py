@@ -24,26 +24,28 @@ async def tool_handler(response: Any, conversation: list[dict[str, Any]],) -> An
     content_blocks = response.content
 
     for block in content_blocks:
-        # Streamlined approach to check for the existence of the tool use block
-        if 'toolUse' in block:
-            tool_use_block = block['toolUse']
-            tool_name = tool_use_block['name']
-            tool_id = tool_use_block['toolUseId']
-            input_data = tool_use_block['input']
+        # Use the get method to retrieve the tool use block
+        tool_use_block = block.get('toolUse')
+        if tool_use_block is None:
+            continue
 
-            # Process the tool use
-            if tool_name == "search_web":
-                result = search_web(input_data.get('query'))
-            else:
-                result = f"Unknown tool use name: {tool_name}"
+        tool_name = tool_use_block.get('name')
+        tool_id = tool_use_block.get('toolUseId')
+        input_data = tool_use_block.get('input', {})
 
-            # Create tool result
-            tool_result = ToolResult(tool_id, result)
+        # Process the tool use
+        if tool_name == "search_web":
+            result = search_web(input_data.get('query'))
+        else:
+            result = f"Unknown tool use name: {tool_name}"
 
-            # Format according to platform
-            formatted_result = tool_result.to_bedrock_format()
+        # Create tool result
+        tool_result = ToolResult(tool_id, result)
 
-            tool_results.append(formatted_result)
+        # Format according to platform
+        formatted_result = tool_result.to_bedrock_format()
+
+        tool_results.append(formatted_result)
 
     # Create and return appropriate message format
     return ConversationMessage(
