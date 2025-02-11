@@ -9,17 +9,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Config:
-    log_agent_chat: bool = False
-    log_classifier_chat: bool = False
-    log_classifier_raw_output: bool = False
-    log_classifier_output: bool = False
-    log_execution_times: bool = False
-    max_retries: int = 3
-    use_default_agent_if_none_identified: bool = True
-    classification_error_message: str = "I'm sorry, an error occurred while processing your request. Please try again later."
-    no_selected_agent_message: str = "I'm sorry, I couldn't determine how to handle your request. Could you please rephrase it?"
-    general_routing_error_msg_message: str = "An error occurred while processing your request. Please try again later."
-    max_message_pairs_per_agent: int = 100
+    LOG_AGENT_CHAT: bool = False
+    LOG_CLASSIFIER_CHAT: bool = False
+    LOG_CLASSIFIER_RAW_OUTPUT: bool = False
+    LOG_CLASSIFIER_OUTPUT: bool = False
+    LOG_EXECUTION_TIMES: bool = False
+    MAX_RETRIES: int = 3
+    USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED: bool = True
+    CLASSIFICATION_ERROR_MESSAGE: str = "I'm sorry, an error occurred while processing your request. Please try again later."
+    NO_SELECTED_AGENT_MESSAGE: str = "I'm sorry, I couldn't determine how to handle your request. Could you please rephrase it?"
+    GENERAL_ROUTING_ERROR_MSG_MESSAGE: str = "An error occurred while processing your request. Please try again later."
+    MAX_MESSAGE_PAIRS_PER_AGENT: int = 100
 
 DEFAULT_CONFIG = Config()
 
@@ -116,6 +116,15 @@ class MultiAgentOrchestrator:
                  storage: ChatStorage = InMemoryChatStorage(),
                  classifier: 'Classifier' = None,
                  logger: 'Logger' = None):
+        if options is None:
+            options = {}
+        if isinstance(options, dict):
+            valid_keys = {f.name for f in fields(Config)}
+            options = {k: v for k, v in options.items() if k in valid_keys}
+            options = Config(**options)
+        elif not isinstance(options, Config):
+            raise ValueError("options must be a dictionary or a Config instance")
+
         self.config = options
         self.storage = storage
         self.logger = Logger(self.config, logger)
@@ -192,7 +201,7 @@ class MultiAgentOrchestrator:
                 lambda: self.classifier.classify(user_input, chat_history)
             )
 
-            if self.config.log_classifier_output:
+            if self.config.LOG_CLASSIFIER_OUTPUT:
                 self.print_intent(user_input, classifier_result)
 
         except Exception as error:
@@ -203,12 +212,12 @@ class MultiAgentOrchestrator:
                                               user_id,
                                               session_id,
                                               additional_params),
-                output=self.config.classification_error_message,
+                output=self.config.CLASSIFICATION_ERROR_MESSAGE,
                 streaming=False
             )
 
         if not classifier_result.selected_agent:
-            if self.config.use_default_agent_if_none_identified:
+            if self.config.USE_DEFAULT_AGENT_IF_NONE_IDENTIFIED:
                 classifier_result = self.get_fallback_result()
                 self.logger.info("Using default agent as no agent was selected")
             else:
@@ -218,7 +227,7 @@ class MultiAgentOrchestrator:
                                                   user_id,
                                                   session_id,
                                                   additional_params),
-                    output=self.config.no_selected_agent_message,
+                    output=self.config.NO_SELECTED_AGENT_MESSAGE,
                     streaming=False
                 )
 
@@ -267,7 +276,7 @@ class MultiAgentOrchestrator:
                                               user_id,
                                               session_id,
                                               additional_params),
-                output=self.config.general_routing_error_msg_message,
+                output=self.config.GENERAL_ROUTING_ERROR_MSG_MESSAGE,
                 streaming=False
             )
 
@@ -282,7 +291,7 @@ class MultiAgentOrchestrator:
         Logger.logger.info('')
 
     async def measure_execution_time(self, timer_name: str, fn):
-        if not self.config.log_execution_times:
+        if not self.config.LOG_EXECUTION_TIMES:
             return await fn()
 
         start_time = time.time()
@@ -335,7 +344,7 @@ class MultiAgentOrchestrator:
                                                         session_id,
                                                         agent.id,
                                                         message,
-                                                        self.config.max_message_pairs_per_agent)
+                                                        self.config.MAX_MESSAGE_PAIRS_PER_AGENT)
 
 class Logger:
     def __init__(self, config: Config, logger: 'Logger' = None):
@@ -348,7 +357,7 @@ class Logger:
         logger.info('-' * len(header))
 
     def print_chat_history(self, chat_history: list[ConversationMessage], agent_id: str):
-        if self.config.log_classifier_chat:
+        if self.config.LOG_CLASSIFIER_CHAT:
             self.log_chat_history(chat_history, agent_id)
 
     @staticmethod
@@ -358,7 +367,7 @@ class Logger:
             logger.info(f"{message.role}: {message.content}")
 
     def print_execution_times(self, execution_times: Dict[str, float]):
-        if self.config.log_execution_times:
+        if self.config.LOG_EXECUTION_TIMES:
             self.log_execution_times(execution_times)
 
     @staticmethod
