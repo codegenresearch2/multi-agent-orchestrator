@@ -7,15 +7,15 @@ class ChainAgentOptions(AgentOptions):
     def __init__(self, agents: List[Agent], default_output: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.agents = agents
-        self.default_output = default_output
+        self.default_output = default_output or "No output generated from the chain."
+        if not self.agents:
+            raise ValueError("ChainAgent requires at least one agent in the chain.")
 
 class ChainAgent(Agent):
     def __init__(self, options: ChainAgentOptions):
         super().__init__(options)
         self.agents = options.agents
-        self.default_output = options.default_output or "No output generated from the chain."
-        if len(self.agents) == 0:
-            raise ValueError("ChainAgent requires at least one agent in the chain.")
+        self.default_output = options.default_output
 
     async def process_request(
         self,
@@ -49,19 +49,17 @@ class ChainAgent(Agent):
                     if not is_last_agent:
                         Logger.logger.warning(f"Intermediate agent {agent.name} returned a streaming response, which is not allowed.")
                         return self.create_default_response()
-                    # It's the last agent and streaming is allowed
                     final_response = response
                 else:
                     Logger.logger.warning(f"Agent {agent.name} returned an invalid response type.")
                     return self.create_default_response()
 
-                # If it's not the last agent, ensure we have a non-streaming response to pass to the next agent
                 if not is_last_agent and not self.is_conversation_message(final_response):
                     Logger.logger.error(f"Expected non-streaming response from intermediate agent {agent.name}")
                     return self.create_default_response()
 
             except Exception as error:
-                Logger.logger.error(f"Error processing request with agent {agent.name}:{str(error)}")
+                Logger.logger.error(f"Error processing request with agent {agent.name}: {error}")
                 return self.create_default_response()
 
         return final_response
