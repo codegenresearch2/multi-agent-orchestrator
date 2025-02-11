@@ -27,6 +27,19 @@ orchestrator = MultiAgentOrchestrator(options=OrchestratorConfig(
     MAX_MESSAGE_PAIRS_PER_AGENT=10,
 ))
 
+# Define the search web tool
+search_web_tool = {
+    "name": "search_web",
+    "description": "Search Web for information",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "The search query"
+        }
+    },
+    "required": ["query"]
+}
+
 # Define agents
 script_writer_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
@@ -42,18 +55,6 @@ Your tasks consist of:
 """,
     model_id="anthropic.claude-3-sonnet-20240229-v1:0"
 ))
-
-search_web_tool = {
-    "name": "search_web",
-    "description": "Search Web for information",
-    "properties": {
-        "query": {
-            "type": "string",
-            "description": "The search query"
-        }
-    },
-    "required": ["query"]
-}
 
 casting_director_agent = BedrockLLMAgent(BedrockLLMAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
@@ -78,7 +79,7 @@ Your tasks consist of:
 ))
 
 # Initialize the supervisor agent
-movie_producer_supervisor = SupervisorAgent(SupervisorAgentOptions(
+supervisor = SupervisorAgent(SupervisorAgentOptions(
     api_key=os.getenv('ANTHROPIC_API_KEY', None),
     name='MovieProducerAgent',
     description="""
@@ -94,7 +95,7 @@ Your tasks consist of:
 ))
 
 async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input: str, _user_id: str, _session_id: str):
-    classifier_result = ClassifierResult(selected_agent=movie_producer_supervisor, confidence=1.0)
+    classifier_result = ClassifierResult(selected_agent=supervisor, confidence=1.0)
     response: AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
     # Print metadata
