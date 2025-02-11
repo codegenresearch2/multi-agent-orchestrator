@@ -7,9 +7,7 @@ class ChainAgentOptions(AgentOptions):
     def __init__(self, agents: List[Agent], default_output: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.agents = agents
-        self.default_output = default_output or "No output generated from the chain."
-        if len(self.agents) == 0:
-            raise ValueError("ChainAgent requires at least one agent in the chain.")
+        self.default_output = default_output if default_output is not None else "No output generated from the chain."
 
 class ChainAgent(Agent):
     def __init__(self, options: ChainAgentOptions):
