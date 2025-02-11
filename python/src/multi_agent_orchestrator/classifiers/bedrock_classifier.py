@@ -12,18 +12,17 @@ class BedrockClassifierOptions:
     def __init__(
         self,
         model_id: Optional[str] = None,
-        region: Optional[str] = None,
         inference_config: Optional[Dict[str, Any]] = None
     ):
         self.model_id = model_id
-        self.region = region or os.environ.get('REGION', 'us-east-1')
+        self.region = os.environ.get('REGION', 'us-east-1')
         self.inference_config = inference_config if inference_config is not None else {}
 
 
 class BedrockClassifier(Classifier):
     def __init__(self, options: BedrockClassifierOptions):
         super().__init__()
-        self.region = options.region or os.environ.get('REGION', 'us-east-1')
+        self.region = options.region
         self.client = boto3.client('bedrock-runtime', region_name=self.region)
         self.model_id = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_5_SONNET
         self.system_prompt: str = "You are an AI assistant."  # Declared and initialized
@@ -76,10 +75,10 @@ class BedrockClassifier(Classifier):
             "messages": [user_message.__dict__],
             "system": self.system_prompt,
             "tools": self.tools,
-            "maxTokens": self.inference_config['max_tokens'],
+            "max_tokens": self.inference_config['max_tokens'],
             "temperature": self.inference_config['temperature'],
-            "topP": self.inference_config['top_p'],
-            "stopSequences": self.inference_config['stop_sequences'],
+            "top_p": self.inference_config['top_p'],
+            "stop_sequences": self.inference_config['stop_sequences'],
         }
 
         try:
