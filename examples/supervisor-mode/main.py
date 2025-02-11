@@ -122,7 +122,7 @@ if __name__ == "__main__":
         region='us-east-1'
     ))
 
-    # Initialize the supervisor agent with a team of agents
+    # Initialize the supervisor agent with a team of agents and extra tools
     supervisor = SupervisorAgent(
         SupervisorAgentOptions(
             supervisor=supervisor_agent,
