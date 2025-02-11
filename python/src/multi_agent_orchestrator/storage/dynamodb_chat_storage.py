@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Union, Optional
 import time
 import boto3
 from multi_agent_orchestrator.storage import ChatStorage
@@ -32,12 +32,13 @@ class DynamoDbChatStorage(ChatStorage):
         timestamped_message = TimestampedMessage(
             role=new_message.role,
             content=new_message.content,
-            timestamp=int(time.time() * 1000))
+            timestamp=int(time.time() * 1000)
+        )
         existing_conversation.append(timestamped_message)
 
         trimmed_conversation = self.trim_conversation(existing_conversation, max_history_size)
 
-        item: Dict[str, str, List[TimestampedMessage], int] = {
+        item: Dict[str, Union[str, List[TimestampedMessage], int]] = {
             'PK': user_id,
             'SK': key,
             'conversation': conversation_to_dict(trimmed_conversation),
@@ -49,32 +50,32 @@ class DynamoDbChatStorage(ChatStorage):
         try:
             self.table.put_item(Item=item)
         except Exception as error:
-            Logger.error(f"Error saving conversation to DynamoDB: {error}")
+            Logger.logger.error(f"Error saving conversation to DynamoDB: {error}")
             raise
 
         return self._remove_timestamps(trimmed_conversation)
 
-    async def fetch_chat(self, user_id: str, session_id: str, agent_id: str):
+    async def fetch_chat(self, user_id: str, session_id: str, agent_id: str) -> List[ConversationMessage]:
         key = self._generate_key(user_id, session_id, agent_id)
         try:
             response = self.table.get_item(Key={'PK': user_id, 'SK': key})
-            stored_messages = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
+            stored_messages: List[TimestampedMessage] = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
             return self._remove_timestamps(stored_messages)
         except Exception as error:
-            Logger.error(f"Error getting conversation from DynamoDB: {error}")
+            Logger.logger.error(f"Error getting conversation from DynamoDB: {error}")
             raise
 
-    async def fetch_chat_with_timestamp(self, user_id: str, session_id: str, agent_id: str):
+    async def fetch_chat_with_timestamp(self, user_id: str, session_id: str, agent_id: str) -> List[TimestampedMessage]:
         key = self._generate_key(user_id, session_id, agent_id)
         try:
             response = self.table.get_item(Key={'PK': user_id, 'SK': key})
-            stored_messages = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
+            stored_messages: List[TimestampedMessage] = self._dict_to_conversation(response.get('Item', {}).get('conversation', []))
             return stored_messages
         except Exception as error:
-            Logger.error(f"Error getting conversation from DynamoDB: {error}")
+            Logger.logger.error(f"Error getting conversation from DynamoDB: {error}")
             raise
 
-    async def fetch_all_chats(self, user_id: str, session_id: str):
+    async def fetch_all_chats(self, user_id: str, session_id: str) -> List[ConversationMessage]:
         try:
             response = self.table.query(
                 KeyConditionExpression="PK = :pk AND begins_with(SK, :skPrefix)",
@@ -90,7 +91,7 @@ class DynamoDbChatStorage(ChatStorage):
             all_chats = []
             for item in response['Items']:
                 if not isinstance(item.get('conversation'), list):
-                    Logger.error(f"Unexpected item structure: {item}")
+                    Logger.logger.error(f"Unexpected item structure: {item}")
                     continue
 
                 agent_id = item['SK'].split('#')[1]
@@ -112,14 +113,14 @@ class DynamoDbChatStorage(ChatStorage):
             all_chats.sort(key=lambda x: x.timestamp)
             return self._remove_timestamps(all_chats)
         except Exception as error:
-            Logger.error(f"Error querying conversations from DynamoDB: {error}")
+            Logger.logger.error(f"Error querying conversations from DynamoDB: {error}")
             raise
 
-    def _generate_key(self, user_id: str, session_id: str, agent_id: str):
+    def _generate_key(self, user_id: str, session_id: str, agent_id: str) -> str:
         return f"{session_id}#{agent_id}"
 
-    def _remove_timestamps(self, messages: List[TimestampedMessage]):
+    def _remove_timestamps(self, messages: List[TimestampedMessage]) -> List[ConversationMessage]:
         return [ConversationMessage(role=message.role, content=message.content) for message in messages]
 
-    def _dict_to_conversation(self, messages: List[Dict]):
+    def _dict_to_conversation(self, messages: List[Dict]) -> List[TimestampedMessage]:
         return [TimestampedMessage(role=msg['role'], content=msg['content'], timestamp=msg['timestamp']) for msg in messages]
