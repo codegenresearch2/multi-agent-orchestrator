@@ -19,8 +19,8 @@ from multi_agent_orchestrator.utils import get_current_date  # Assuming this is 
 load_dotenv()
 
 # Initialize logging
-basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
 logger: Logger = getLogger(__name__)
+basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
 
 # Agent Initialization
 tech_agent = BedrockLLMAgent(
@@ -113,21 +113,21 @@ async def handle_request(_orchestrator: MultiAgentOrchestrator, _user_input:str,
     response:AgentResponse = await _orchestrator.agent_process_request(_user_input, _user_id, _session_id, classifier_result)
 
     # Print metadata
-    print("\nMetadata:")
-    print(f"Selected Agent: {response.metadata.agent_name}")
+    logger.info("\nMetadata:")
+    logger.info(f"Selected Agent: {response.metadata.agent_name}")
     if isinstance(response, AgentResponse) and response.streaming is False:
         # Handle regular response
         if isinstance(response.output, str):
-            print(response.output)
+            logger.info(response.output)
         elif isinstance(response.output, ConversationMessage):
-                print(response.output.content[0].get('text'))
+                logger.info(response.output.content[0].get('text'))
 
 if __name__ == "__main__":
 
     USER_ID = str(uuid.uuid4())
     SESSION_ID = str(uuid.uuid4())
 
-    print(f"""Welcome to the interactive Multi-Agent system.\n
+    logger.info(f"""Welcome to the interactive Multi-Agent system.\n
 I'm here to assist you with your questions.
 Here is the list of available agents:
 - TechAgent: Anything related to technology
@@ -144,7 +144,7 @@ Here is the list of available agents:
         user_input = input("\nYou: ").strip()
 
         if user_input.lower() == 'quit':
-            print("Exiting the program. Goodbye!")
+            logger.info("Exiting the program. Goodbye!")
             sys.exit()
 
         # Run the async function
