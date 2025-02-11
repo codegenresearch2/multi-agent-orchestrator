@@ -54,6 +54,5 @@ class LexBotAgent(Agent):
             )
 
         except (BotoCoreError, ClientError) as error:
-            Logger.error(f"Error processing request: {str(error)}")
+            Logger.error(f"Error processing request: {error}")
             raise
-
