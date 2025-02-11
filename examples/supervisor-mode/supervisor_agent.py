@@ -15,16 +15,19 @@ class SupervisorType(Enum):
     BEDROCK = "BEDROCK"
     ANTHROPIC = "ANTHROPIC"
 
+
 @dataclass
 class SupervisorAgentOptions(AgentOptions):
     supervisor: Agent = None
     team: list[Agent] = field(default_factory=list)
     storage: Optional[ChatStorage] = None
     trace: Optional[bool] = None
+    extra_tools: list[Tool] = field(default_factory=list)  # Added extra_tools parameter
 
     # Hide inherited fields
     name: str = field(init=False)
     description: str = field(init=False)
+
 
 class SupervisorAgent(Agent):
     """
@@ -40,6 +43,7 @@ class SupervisorAgent(Agent):
         session_id (str): Session ID.
         storage (ChatStorage): Chat storage for storing conversation history.
         trace (bool): Flag indicating whether to enable tracing.
+        extra_tools (list[Tool]): List of extra tools to be used by the supervisor agent.
 
     Methods:
         __init__(self, options: SupervisorAgentOptions): Initializes a SupervisorAgent instance.
@@ -61,13 +65,19 @@ class SupervisorAgent(Agent):
                     "items": {
                         "type": "object",
                         "properties": {
-                            "recipient": {"type": "string", "description": "The name of the agent to send the message to."},
-                            "content": {"type": "string", "description": "The content of the message to send."}
+                            "recipient": {
+                                "type": "string",
+                                "description": "The name of the agent to send the message to."
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "The content of the message to send."
+                            }
                         },
-                        "required": ["recipient", "content"],
-                        "description": "Array of messages to send to different agents.",
-                        "minItems": 1
-                    }
+                        "required": ["recipient", "content"]
+                    },
+                    "description": "Array of messages to send to different agents.",
+                    "minItems": 1
                 }
             },
             required=["messages"]
@@ -89,7 +99,7 @@ class SupervisorAgent(Agent):
         self.supervisor_type = SupervisorType.BEDROCK.value if isinstance(self.supervisor, BedrockLLMAgent) else SupervisorType.ANTHROPIC.value
         if not self.supervisor.tool_config:
             self.supervisor.tool_config = {
-                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in SupervisorAgent.supervisor_tools],
+                'tool': [tool.to_bedrock_format() if self.supervisor_type == SupervisorType.BEDROCK.value else tool.to_claude_format() for tool in self.supervisor_tools + options.extra_tools],
                 'toolMaxRecursions': 40,
                 'useToolHandler': self.supervisor_tool_handler
             }
@@ -100,8 +110,9 @@ class SupervisorAgent(Agent):
         self.session_id = ''
         self.storage = options.storage or InMemoryChatStorage()
         self.trace = options.trace
+        self.extra_tools = options.extra_tools
 
-        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in SupervisorAgent.supervisor_tools)
+        tools_str = ",".join(f"{tool.name}:{tool.func_description}" for tool in self.supervisor_tools + self.extra_tools)
         agent_list_str = "\n".join(
             f"{agent.name}: {agent.description}"
             for agent in self.team
@@ -199,7 +210,7 @@ When communicating with other agents, including the User, please follow these gu
         print('Using Tool : get_current_date')
         return datetime.now(timezone.utc).strftime('%m/%d/%Y')  # from datetime import datetime, timezone
 
-    async def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]]) -> Any:
+    async def supervisor_tool_handler(self, response: Any, conversation: list[dict[str, Any]],) -> Any:
         if not response.content:
             raise ValueError("No content blocks in response")
 
@@ -217,7 +228,11 @@ When communicating with other agents, including the User, please follow these gu
             input_data = tool_use_block.get("input", {})
 
             # Process the tool use
-            result = await self._process_tool(tool_name, input_data)
+            try:
+                result = await self._process_tool(tool_name, input_data)
+            except Exception as e:
+                Logger.error(f"Error processing tool {tool_name}: {e}")
+                continue
 
             # Create tool result
             tool_result = ToolResult(tool_id, result)
@@ -268,7 +283,11 @@ When communicating with other agents, including the User, please follow these gu
         # update prompt with agents memory
         self.supervisor.set_system_prompt(self.prompt_template.replace('{AGENTS_MEMORY}', agents_memory))
         # call the supervisor
-        response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        try:
+            response = await self.supervisor.process_request(input_text, user_id, session_id, chat_history, additional_params)
+        except Exception as e:
+            Logger.error(f"Error processing request: {e}")
+            return ConversationMessage(role=ParticipantRole.ASSISTANT.value, content=[{'text': 'Sorry, there was an error processing your request.'}])
         return response
 
     def _get_tool_use_block(self, block: dict) -> Union[dict, None]:
