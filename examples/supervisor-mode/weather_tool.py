@@ -1,31 +1,44 @@
 import requests
 from requests.exceptions import RequestException
-from typing import Any
+from typing import List, Dict, Any
 from multi_agent_orchestrator.types import ConversationMessage, ParticipantRole
+from multi_agent_orchestrator.utils import Tool, Tools
+import json
 
+async def fetch_weather_data(latitude: str, longitude: str):
+    """
+    Fetches weather data for the given latitude and longitude using the Open-Meteo API.
+    Returns the weather data or an error message if the request fails.
 
-weather_tool_description = [{
-    "toolSpec": {
-        "name": "Weather_Tool",
-        "description": "Get the current weather for a given location, based on its WGS84 coordinates.",
-        "inputSchema": {
-            "json": {
-                "type": "object",
-                "properties": {
-                    "latitude": {
-                        "type": "string",
-                        "description": "Geographical WGS84 latitude of the location.",
-                    },
-                    "longitude": {
-                        "type": "string",
-                        "description": "Geographical WGS84 longitude of the location.",
-                    },
-                },
-                "required": ["latitude", "longitude"],
-            }
-        },
-    }
-}]
+    :param latitude: the latitude of the location
+    :param longitude: the longitude of the location
+    :return: The weather data or an error message.
+    """
+    endpoint = "https://api.open-meteo.com/v1/forecast"
+    params = {"latitude": latitude, "longitude": longitude, "current_weather": True}
+    try:
+        response = requests.get(endpoint, params=params)
+        weather_data = response.json()
+        response.raise_for_status()
+        return weather_data
+    except RequestException as e:
+        return e.response.json()
+    except Exception as e:
+        return {"error": type(e), "message": str(e)}
+
+weather_tools: Tools = Tools(tools=[Tool(name="Weather_Tool",
+                            description="Get the current weather for a given location, based on its WGS84 coordinates.",
+                            func=fetch_weather_data,
+                            properties={
+                                "latitude": {
+                                    "type": "string",
+                                    "description": "Geographical WGS84 latitude of the location.",
+                                },
+                                "longitude": {
+                                    "type": "string",
+                                    "description": "Geographical WGS84 longitude of the location.",
+                                },
+                            })])
 
 weather_tool_prompt = """
 You are a weather assistant that provides current weather data for user-specified locations using only
@@ -44,8 +57,7 @@ To use the tool, you strictly apply the provided tool specification.
 - Complete the entire process until you have all required data before sending the complete response.
 """
 
-
-async def weather_tool_handler(response: ConversationMessage, conversation: list[dict[str, Any]]) -> ConversationMessage:
+async def weather_tool_handler(response: ConversationMessage, conversation: List[Dict[str, Any]]) -> ConversationMessage:
     response_content_blocks = response.content
 
     # Initialize an empty list of tool results
@@ -68,7 +80,7 @@ async def weather_tool_handler(response: ConversationMessage, conversation: list
                 tool_results.append({
                     "toolResult": {
                         "toolUseId": tool_use_block["toolUseId"],
-                        "content": [{"json": {"result": tool_response}}],
+                        "content": [{"json": tool_response}],
                     }
                 })
 
@@ -78,28 +90,3 @@ async def weather_tool_handler(response: ConversationMessage, conversation: list
             content=tool_results)
 
     return message
-
-
-async def fetch_weather_data(input_data):
-    """
-    Fetches weather data for the given latitude and longitude using the Open-Meteo API.
-    Returns the weather data or an error message if the request fails.
-
-    :param input_data: The input data containing the latitude and longitude.
-    :return: The weather data or an error message.
-    """
-
-    endpoint = "https://api.open-meteo.com/v1/forecast"
-    latitude = input_data.get("latitude")
-    longitude = input_data.get("longitude", "")
-    params = {"latitude": latitude, "longitude": longitude, "current_weather": True}
-
-    try:
-        response = requests.get(endpoint, params=params)
-        weather_data = {"weather_data": response.json()}
-        response.raise_for_status()
-        return weather_data
-    except RequestException as e:
-        return e.response.json()
-    except Exception as e:
-        return {"error": type(e), "message": str(e)}
