@@ -21,7 +21,7 @@ class BedrockLLMAgentOptions(AgentOptions):
 class BedrockLLMAgent(Agent):
     def __init__(self, options: BedrockLLMAgentOptions):
         super().__init__(options)
-        self.client = boto3.client('bedrock-runtime', region_name=options.region)
+        self.client = boto3.client('bedrock-runtime', region_name=options.region or 'us-west-2')
         self.model_id: str = options.model_id or BEDROCK_MODEL_ID_CLAUDE_3_HAIKU
         self.streaming: bool = options.streaming
         self.inference_config: Dict[str, Any] = {
